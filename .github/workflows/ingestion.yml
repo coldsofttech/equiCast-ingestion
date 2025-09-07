@@ -6,11 +6,11 @@ on:
     - cron: '0 1 * * *'  # Daily at 1 AM UTC
 
 jobs:
-  download:
+  prepare-package:
     if: >
       github.event_name == 'workflow_dispatch' || 
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
-    name: Download FX and Stock Tickers
+    name: Prepare Python Package
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,6 +24,22 @@ jobs:
         with:
           python-version: 3.13
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: eu-west-1
+          role-session-name: GitHubActionsSession
+
+      - name: Login to CodeArtifact
+        id: codeartifact
+        run: |
+          export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
+            --domain "${{ secrets.PYUTILS_CODEARTIFACT_DOMAIN }}" \
+            --domain-owner "${{ secrets.PYUTILS_CODEARTIFACT_OWNER }}" \
+            --query authorizationToken --output text --region eu-west-1)
+          echo "PIP_INDEX_URL=https://${CODEARTIFACT_AUTH_TOKEN}@${{ secrets.PYUTILS_CODEARTIFACT_ENDPOINT }}" >> $GITHUB_ENV
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -32,6 +48,51 @@ jobs:
 
       - name: Build Package
         run: python -m build
+
+      - name: Cache Built Package
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
+
+      - name: Install Package
+        run: pip install -e .
+
+      - name: Run Test Cases
+        run: pytest tests -vv -rEPW -o pytest_collection_order=alphabetical --cache-clear --color=yes --html=pytest_results.html --self-contained-html
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: pytest_results.html
+
+  download:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    name: Download FX and Stock Tickers
+    runs-on: ubuntu-latest
+    needs: prepare-package
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Restore Built Package Cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
 
       - name: Install Package
         run: pip install dist/*.whl
@@ -53,5 +114,49 @@ jobs:
         with:
           path: downloads
           key: downloads-${{ github.run_id }}
-          restore-keys: |
-            downloads-
+
+  process-fx:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    name: Process FX Pairs
+    runs-on: ubuntu-latest
+    needs: [ prepare-package, download ]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Restore Built Package Cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
+
+      - name: Install Package
+        run: pip install dist/*.whl
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: eu-west-1
+          role-session-name: GitHubActionsSession
+
+      - name: Run FX Processor
+        run: |
+          python scripts/fx_processor.py
+
+      - name: Cache "fx_downloads"
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: fx_downloads
+          key: fx_downloads-${{ github.run_id }}
