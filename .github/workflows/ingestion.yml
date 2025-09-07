@@ -29,7 +29,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine wheel setuptools
           mkdir -p equicast_ingestion/_vendor
-          pip install --target=equicast_ingestion/_vendor -r requirements.txt || true
+          pip install --target=equicast_ingestion/_vendor boto3>=1.40.25 botocore>=1.40.25 tqdm>=4.67.1
           ls equicast_ingestion/_vendor
 
       - name: Configure AWS Credentials
