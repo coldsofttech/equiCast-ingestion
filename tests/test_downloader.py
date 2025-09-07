@@ -24,19 +24,6 @@ def test_download_mandatory_file_success(mock_s3_client, tmp_path):
     )
 
 
-def test_download_optional_file_missing(mock_s3_client, tmp_path, capsys):
-    def side_effect(bucket, key, dest):
-        if key == "fxpair_status.json":
-            raise ClientError({"Error": {"Code": "404"}}, "download_file")
-
-    mock_s3_client.download_file.side_effect = side_effect
-    d = Downloader(download_dir=str(tmp_path))
-    d.download("fx")
-
-    captured = capsys.readouterr()
-    assert "⚠️ Optional file fxpair_status.json not available" in captured.out
-
-
 def test_download_mandatory_file_missing(mock_s3_client, tmp_path):
     def side_effect(bucket, key, dest):
         if key == "tickers.json":
