@@ -60,7 +60,7 @@ jobs:
         run: pip install -e .
 
       - name: Run Test Cases
-        run: pytest tests -vv -m "ca" -rEPW -o pytest_collection_order=alphabetical --cache-clear --color=yes --html=pytest_results.html --self-contained-html
+        run: pytest tests -vv -rEPW -o pytest_collection_order=alphabetical --cache-clear --color=yes --html=pytest_results.html --self-contained-html
 
       - name: Upload Test Report
         if: always()
