@@ -12,6 +12,9 @@ jobs:
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
     name: Download FX and Stock Tickers
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
