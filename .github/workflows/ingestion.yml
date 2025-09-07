@@ -27,9 +27,8 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
           pip install build twine wheel setuptools
-          pip install pandas>=2.3.2 pyarrow>=21.0.0 yfinance>=0.2.65
+          pip install --target=equicast_ingestion/_vendor -r requirements.txt || true
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -48,7 +47,7 @@ jobs:
           echo "PIP_INDEX_URL=https://aws:${CODEARTIFACT_AUTH_TOKEN}@${{ secrets.PYUTILS_CODEARTIFACT_ENDPOINT }}" >> $GITHUB_ENV
 
       - name: Install Python Utils
-        run: pip install equicast-pyutils>=0.1.0 --extra-index-url ${PIP_INDEX_URL} --upgrade
+        run: pip install --target=equicast_ingestion/_vendor equicast-pyutils>=0.1.0 --extra-index-url ${PIP_INDEX_URL} --upgrade
 
       - name: Build Package
         run: python -m build --wheel --outdir dist --no-isolation
