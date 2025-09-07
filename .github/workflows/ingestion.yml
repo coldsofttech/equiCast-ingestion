@@ -47,7 +47,7 @@ jobs:
           echo "PIP_INDEX_URL=https://aws:${CODEARTIFACT_AUTH_TOKEN}@${{ secrets.PYUTILS_CODEARTIFACT_ENDPOINT }}" >> $GITHUB_ENV
 
       - name: Install Python Utils
-        run: pip install equicast-pyutils>=0.1.0 --extra-index-url ${PIP_INDEX_URL}
+        run: pip install equicast-pyutils>=0.1.0 --extra-index-url ${PIP_INDEX_URL} --upgrade
 
       - name: Build Package
         run: python -m build
