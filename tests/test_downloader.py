@@ -15,6 +15,7 @@ def mock_s3_client(tmp_path):
         yield s3
 
 
+@pytest.mark.noca
 def test_download_mandatory_file_success(mock_s3_client, tmp_path):
     d = Downloader(download_dir=str(tmp_path))
     d.download("fx")
@@ -24,6 +25,7 @@ def test_download_mandatory_file_success(mock_s3_client, tmp_path):
     )
 
 
+@pytest.mark.noca
 def test_download_mandatory_file_missing(mock_s3_client, tmp_path):
     def side_effect(bucket, key, dest):
         if key == "tickers.json":
@@ -38,6 +40,7 @@ def test_download_mandatory_file_missing(mock_s3_client, tmp_path):
     assert "Mandatory file tickers.json not found" in str(exc.value)
 
 
+@pytest.mark.noca
 def test_invalid_data_type(mock_s3_client, tmp_path):
     d = Downloader(download_dir=str(tmp_path))
     with pytest.raises(ValueError):
