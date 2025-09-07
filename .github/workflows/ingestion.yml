@@ -29,18 +29,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install build twine wheel setuptools
-
-      - name: Install Python Utils Dependencies
-        run: |
-          pip install pandas>=2.3.2
-          pip install pyarrow>=21.0.0
-          pip install yfinance>=0.2.65
-
-      - name: Install Python Utils Dependencies
-        run: |
-          pip install pandas>=2.3.2
-          pip install pyarrow>=21.0.0
-          pip install yfinance>=0.2.65
+          pip install pandas>=2.3.2 pyarrow>=21.0.0 yfinance>=0.2.65
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -62,7 +51,7 @@ jobs:
         run: pip install equicast-pyutils>=0.1.0 --extra-index-url ${PIP_INDEX_URL} --upgrade
 
       - name: Build Package
-        run: python -m build
+        run: python -m build --wheel --outdir dist --no-isolation
 
       - name: Cache Built Package
         if: always()
