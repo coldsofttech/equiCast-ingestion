@@ -52,6 +52,7 @@ jobs:
 
       - name: Build Package
         run: |
+          export PIP_INDEX_URL=https://pypi.org/simple
           python -m build
 
       - name: Cache Built Package
@@ -88,7 +89,6 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -r requirements-dev.txt
-          pip install --target=equicast_ingestion/_vendor -r requirements.txt || true
 
       - name: Install Package
         run: pip install dist/*.whl
@@ -127,10 +127,6 @@ jobs:
         with:
           path: dist
           key: built-package-${{ github.run_id }}
-
-      - name: Install Dependencies
-        run: |
-          pip install --target=equicast_ingestion/_vendor -r requirements.txt || true
 
       - name: Install Package
         run: pip install dist/*.whl
@@ -177,10 +173,6 @@ jobs:
         with:
           path: dist
           key: built-package-${{ github.run_id }}
-
-      - name: Install Dependencies
-        run: |
-          pip install --target=equicast_ingestion/_vendor -r requirements.txt || true
 
       - name: Install Package
         run: pip install dist/*.whl
