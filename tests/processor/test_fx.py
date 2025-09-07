@@ -37,16 +37,19 @@ def patch_tqdm_sleep():
         yield
 
 
+@pytest.mark.ca
 def test_fxprocessor_init_creates_fx_download_dir(tmp_download_dir):
     processor = FxProcessor(download_dir=str(tmp_download_dir))
     assert os.path.exists(processor.fx_download_dir)
 
 
+@pytest.mark.ca
 def test_fxprocessor_raises_if_fx_file_missing(tmp_path):
     with pytest.raises(RuntimeError):
         FxProcessor(download_dir=str(tmp_path))
 
 
+@pytest.mark.ca
 @patch("equicast_ingestion.processor.fx.FxDataExtractor")
 def test_process_success(mock_fx_class, tmp_download_dir):
     mock_instance = MagicMock()
@@ -61,6 +64,7 @@ def test_process_success(mock_fx_class, tmp_download_dir):
     assert df_mock.to_parquet.call_count == 3
 
 
+@pytest.mark.ca
 @patch("equicast_ingestion.processor.fx.FxDataExtractor")
 def test_process_handles_failure(mock_fx_class, tmp_download_dir):
     mock_instance = MagicMock()
