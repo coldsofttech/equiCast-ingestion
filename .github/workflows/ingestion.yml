@@ -27,11 +27,8 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-#          pip install build twine wheel setuptools
           pip install build twine
-#          mkdir -p equicast_ingestion/_vendor
           pip install --target=equicast_ingestion/_vendor boto3>=1.40.25 botocore>=1.40.25 tqdm>=4.67.1
-#          ls equicast_ingestion/_vendor
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -52,11 +49,9 @@ jobs:
       - name: Install Python Utils
         run: |
           pip install --target=equicast_ingestion/_vendor equicast-pyutils>=0.1.0 --extra-index-url ${PIP_INDEX_URL} --upgrade
-#          ls equicast_ingestion/_vendor
 
       - name: Build Package
         run: |
-#          python -m build --wheel --outdir dist --no-isolation
           python -m build
 
       - name: Cache Built Package
