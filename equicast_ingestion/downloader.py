@@ -20,7 +20,7 @@ class Downloader:
         default_factory=lambda: {
             "fx": {
                 "mandatory": ["fxpairs.json"],
-                "optional": ["fxpair_status.json"]
+                "optional": []
             },
             "stock": {
                 "mandatory": ["tickers.json"],

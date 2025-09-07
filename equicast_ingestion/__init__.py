@@ -1,5 +1,6 @@
 __all__ = [
-    "Downloader"
+    "Downloader",
+    "processor",
 ]
 
 from .downloader import Downloader
