@@ -215,20 +215,19 @@ jobs:
       - name: Install Package
         run: pip install dist/*.whl
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: eu-west-1
-          role-session-name: GitHubActionsSession
-
       - name: Run FX Processor
         run: |
           python scripts/fx_processor.py
 
       - name: Cache "fx_downloads"
-        if: always()
         uses: actions/cache@v4
         with:
           path: fx_downloads
           key: fx_downloads-${{ github.run_id }}
+
+      - name: Upload "error.log"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error.log
+          path: error.log
