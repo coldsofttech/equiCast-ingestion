@@ -166,7 +166,6 @@ jobs:
           python scripts/downloader.py
 
       - name: Cache "downloads"
-        if: always()
         uses: actions/cache@v4
         with:
           path: downloads
@@ -202,6 +201,12 @@ jobs:
         with:
           path: wheels
           key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+
+      - name: Restore "downloads"
+        uses: actions/cache@v4
+        with:
+          path: downloads
+          key: downloads-${{ github.run_id }}
 
       - name: Install Dependencies from Wheels
         run: |
