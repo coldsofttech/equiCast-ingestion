@@ -231,3 +231,63 @@ jobs:
         with:
           name: error-log
           path: fx_downloads\error.log
+
+  upload-fx:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    name: Upload FX Pair Outputs
+    runs-on: ubuntu-latest
+    needs: [ prepare-package, test, download, process-fx ]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Restore Built Package Cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
+
+      - name: Restore Dependency Wheels
+        uses: actions/cache@v4
+        with:
+          path: wheels
+          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+
+      - name: Restore "fx_downloads"
+        uses: actions/cache@v4
+        with:
+          path: fx_downloads
+          key: fx_downloads-${{ github.run_id }}
+
+      - name: Install Dependencies from Wheels
+        run: |
+          pip install wheels/* --no-index --find-links wheels
+
+      - name: Install Package
+        run: pip install dist/*.whl
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: eu-west-1
+          role-session-name: GitHubActionsSession
+
+      - name: Estimate S3 Storage Cost
+        id: s3_fx
+        run: |
+          python scripts/calculate_s3_cost.py fx_downloads '*.parquet' 'FX Pair Outputs'
+
+      - name: Upload FX Pair Parquet Files
+        run: |
+          python scripts/uploader.py fx_downloads '*.parquet' 'Upload FX Pair Parquet Files' 'equicast-ingestion' 'fx'
