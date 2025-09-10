@@ -406,7 +406,7 @@ jobs:
       - name: Run Stock Processor
         run: |
           echo "🚀 Running for chunk ID: ${{ matrix.chunk_id }}"
-          python scripts/stock_processor.py "chunk_${{ matrix.chunk_id }}.json"
+          python scripts/stock_processor.py "stock_chunks/chunk_${{ matrix.chunk_id }}.json"
 
       - name: Cache "stock_downloads"
         uses: actions/cache@v4
