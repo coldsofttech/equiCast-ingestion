@@ -2,6 +2,7 @@ __all__ = [
     "Downloader",
     "UploadConfig",
     "Uploader",
+    "Splitter",
     "processor",
 ]
 
@@ -9,6 +10,7 @@ import os
 import sys
 
 from .downloader import Downloader
+from .splitter import Splitter
 from .uploader import Uploader, UploadConfig
 
 _vendor_path = os.path.join(os.path.dirname(__file__), "_vendor")

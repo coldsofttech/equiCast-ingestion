@@ -211,3 +211,15 @@ flake8-report
 
 # Ignore pytest report
 pytest_results.html
+
+# Ignore local test files
+stock_chunks/
+stock_downloads/
+stock_chunks.json
+fx_downloads/
+fx_chunks/
+tests/stock_chunks/
+tests/stock_downloads/
+tests/stock_chunks.json
+tests/fx_downloads/
+tests/fx_chunks/
