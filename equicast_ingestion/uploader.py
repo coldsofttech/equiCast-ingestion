@@ -73,7 +73,7 @@ class Uploader:
             f.write(f"### ☁️ {self.config.message}\n")
             f.write(f"**Bucket:** `{self.config.bucket}`\n\n")
             f.write("| Local File | S3 Key | Status |\n")
-            f.write("|------------|--------|--------|")
+            f.write("|------------|--------|--------|\n")
             for key in self.config.uploaded:
                 f.write(f"| ✅ Uploaded | `{key}` | Success |\n")
             for key, error in self.config.failed:
