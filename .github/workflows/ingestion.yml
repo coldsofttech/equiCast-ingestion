@@ -291,3 +291,185 @@ jobs:
       - name: Upload FX Pair Parquet Files
         run: |
           python scripts/uploader.py fx_downloads '*.parquet' 'Upload FX Pair Parquet Files' 'equicast-ingestion' 'fx'
+
+  split-stock:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    name: Split Stocks
+    runs-on: ubuntu-latest
+    needs: [ prepare-package, test, download ]
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.gen_matrix.outputs.matrix }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Restore Built Package Cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
+
+      - name: Restore Dependency Wheels
+        uses: actions/cache@v4
+        with:
+          path: wheels
+          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+
+      - name: Restore "downloads"
+        uses: actions/cache@v4
+        with:
+          path: downloads
+          key: downloads-${{ github.run_id }}
+
+      - name: Install Dependencies from Wheels
+        run: |
+          pip install wheels/* --no-index --find-links wheels
+
+      - name: Install Package
+        run: pip install dist/*.whl
+
+      - name: Run Splitter
+        id: gen_matrix
+        env:
+          CHUNK_SIZE: 200
+        run: |
+          CHUNK_SIZE=$CHUNK_SIZE
+          echo "🔢 Using CHUNK_SIZE=$CHUNK_SIZE"
+          python scripts/splitter.py downloads/tickers.json $CHUNK_SIZE 'stock' 
+          echo "🔁 Reading chunk IDs from file..."
+          MATRIX=$(jq -c . < stock_chunks.json)
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+      - name: Cache "stock_chunks"
+        uses: actions/cache@v4
+        with:
+          path: stock_chunks
+          key: stock_chunks-${{ github.run_id }}
+
+  process-stock:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    name: Process Stocks
+    runs-on: ubuntu-latest
+    needs: [ prepare-package, test, download, split-stock ]
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      max-parallel: 25
+      matrix:
+        chunk_id: ${{ fromJson(needs.split-stock.outputs.matrix) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Restore Built Package Cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
+
+      - name: Restore Dependency Wheels
+        uses: actions/cache@v4
+        with:
+          path: wheels
+          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+
+      - name: Restore "stock_chunks"
+        uses: actions/cache@v4
+        with:
+          path: stock_chunks
+          key: stock_chunks-${{ github.run_id }}
+
+      - name: Install Dependencies from Wheels
+        run: |
+          pip install wheels/* --no-index --find-links wheels
+
+      - name: Install Package
+        run: pip install dist/*.whl
+
+      - name: Run Stock Processor
+        run: |
+          echo "🚀 Running for chunk ID: ${{ matrix.chunk_id }}"
+          python scripts/stock_processor.py "chunk_${{ matrix.chunk_id }}.json"
+
+      - name: Cache "stock_downloads"
+        uses: actions/cache@v4
+        with:
+          path: stock_downloads
+          key: stock_downloads-${{ github.run_id }}
+
+  upload-stock:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    name: Upload Stock Ticker Outputs
+    runs-on: ubuntu-latest
+    needs: [ prepare-package, test, download, split-stock, process-stock ]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Restore Built Package Cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
+
+      - name: Restore Dependency Wheels
+        uses: actions/cache@v4
+        with:
+          path: wheels
+          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+
+      - name: Restore "stock_downloads"
+        uses: actions/cache@v4
+        with:
+          path: stock_downloads
+          key: stock_downloads-${{ github.run_id }}
+
+      - name: Install Dependencies from Wheels
+        run: |
+          pip install wheels/* --no-index --find-links wheels
+
+      - name: Install Package
+        run: pip install dist/*.whl
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: eu-west-1
+          role-session-name: GitHubActionsSession
+
+      - name: Estimate S3 Storage Cost
+        id: s3_stock
+        run: |
+          python scripts/calculate_s3_cost.py stock_downloads '*.parquet' 'Stock Ticker Outputs'
+
+      - name: Upload Stock Ticker Parquet Files
+        run: |
+          python scripts/uploader.py stock_downloads '*.parquet' 'Upload Stock Ticker Parquet Files' 'equicast-ingestion' 'stock'
