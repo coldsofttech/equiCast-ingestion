@@ -1,5 +1,7 @@
 __all__ = [
-    "FxProcessor"
+    "FxProcessor",
+    "StockProcessor"
 ]
 
 from .fx import FxProcessor
+from .stock import StockProcessor

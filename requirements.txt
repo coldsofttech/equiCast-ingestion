@@ -5,4 +5,4 @@ requests>=2.31.0
 pandas>=2.3.2
 pyarrow>=21.0.0
 yfinance>=0.2.65
-equicast-pyutils>=0.1.0
+equicast-pyutils>=0.1.3
