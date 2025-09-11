@@ -23,16 +23,27 @@ class StockProcessor:
         if not os.path.exists(self.ticker_file):
             raise RuntimeError(f"File {self.ticker_file} does not exist!")
 
+    @staticmethod
+    def _process_prices(extractor: StockDataExtractor, folder: str):
+        price_data = extractor.extract_stock_price_data()
+        if price_data:
+            price_data.to_parquet(os.path.join(folder, "stock_price.parquet"))
+
+    @staticmethod
+    def _process_dividends(extractor: StockDataExtractor, folder: str):
+        dividends = extractor.extract_dividends()
+        if dividends:
+            dividends.to_parquet(os.path.join(folder, "dividends.parquet"))
+
     def _process_ticker(self, ticker: str):
         print(f"📥 Fetching ticker data for {ticker}.")
         stock_extractor = StockDataExtractor(ticker=ticker)
         try:
-            stock_price_data = stock_extractor.extract_stock_price_data()
             folder_path = os.path.join(self.stock_download_dir, ticker)
             os.makedirs(folder_path, exist_ok=True)
-            filepath = os.path.join(folder_path, "stock_price.parquet")
-            stock_price_data.to_parquet(filepath)
-            return {"success": True, "file": filepath}
+            self._process_prices(stock_extractor, folder_path)
+            self._process_dividends(stock_extractor, folder_path)
+            return {"success": True, "folder": folder_path}
         except Exception as e:
             return {"error": f"Failed to extract ticker data: {e}."}
 
