@@ -122,7 +122,7 @@ jobs:
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
     name: Download FX and Stock Tickers
     runs-on: ubuntu-latest
-    needs: [ prepare-package, test ]
+    needs: test
     permissions:
       contents: read
       id-token: write
@@ -177,7 +177,7 @@ jobs:
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
     name: Process FX Pairs
     runs-on: ubuntu-latest
-    needs: [ prepare-package, test, download ]
+    needs: download
     permissions:
       contents: read
       id-token: write
@@ -238,7 +238,7 @@ jobs:
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
     name: Upload FX Pair Outputs
     runs-on: ubuntu-latest
-    needs: [ prepare-package, test, download, process-fx ]
+    needs: process-fx
     permissions:
       contents: read
       id-token: write
@@ -298,7 +298,7 @@ jobs:
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
     name: Split Stocks
     runs-on: ubuntu-latest
-    needs: [ prepare-package, test, download ]
+    needs: download
     permissions:
       contents: read
     outputs:
@@ -361,7 +361,7 @@ jobs:
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
     name: Process Stocks
     runs-on: ubuntu-latest
-    needs: [ prepare-package, test, download, split-stock ]
+    needs: split-stock
     permissions:
       contents: read
     strategy:
@@ -414,13 +414,20 @@ jobs:
           path: stock_downloads
           key: stock_downloads-${{ github.run_id }}
 
+      - name: Upload "error.log"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-log
+          path: fx_downloads\error.log
+
   upload-stock:
     if: >
       github.event_name == 'workflow_dispatch' || 
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
     name: Upload Stock Ticker Outputs
     runs-on: ubuntu-latest
-    needs: [ prepare-package, test, download, split-stock, process-stock ]
+    needs: process-stock
     permissions:
       contents: read
       id-token: write
