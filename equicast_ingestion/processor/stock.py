@@ -25,12 +25,14 @@ class StockProcessor:
 
     @staticmethod
     def _process_prices(extractor: StockDataExtractor, folder: str):
+        print(f"💲 Fetching stock prices for {extractor.ticker}.")
         price_data = extractor.extract_stock_price_data()
         if price_data:
             price_data.to_parquet(os.path.join(folder, "stock_price.parquet"))
 
     @staticmethod
     def _process_dividends(extractor: StockDataExtractor, folder: str):
+        print(f"💰 Fetching dividends for {extractor.ticker}.")
         dividends = extractor.extract_dividends()
         if dividends:
             dividends.to_parquet(os.path.join(folder, "dividends.parquet"))
