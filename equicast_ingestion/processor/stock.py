@@ -25,7 +25,7 @@ class StockProcessor:
 
     @staticmethod
     def _process_prices(extractor: StockDataExtractor, folder: str):
-        filename = os.path.join(folder, f"stock_price.parquet")
+        filename = os.path.join(folder, "stock_price.parquet")
         if not os.path.exists(filename):
             print(f"💲 Fetching stock prices for {extractor.ticker}.")
             price_data = extractor.extract_stock_price_data()
@@ -34,7 +34,7 @@ class StockProcessor:
 
     @staticmethod
     def _process_dividends(extractor: StockDataExtractor, folder: str):
-        filename = os.path.join(folder, f"dividends.parquet")
+        filename = os.path.join(folder, "dividends.parquet")
         if not os.path.exists(filename):
             print(f"💰 Fetching dividends for {extractor.ticker}.")
             dividends = extractor.extract_dividends()
