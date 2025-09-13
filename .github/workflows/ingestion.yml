@@ -36,6 +36,30 @@ jobs:
           aws-region: eu-west-1
           role-session-name: GitHubActionsSession
 
+      - name: Login to CodeArtifact (AWS Utils)
+        id: caawsutils
+        run: |
+          export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
+            --domain "${{ secrets.CODEARTIFACT_DOMAIN }}" \
+            --domain-owner "${{ secrets.CODEARTIFACT_OWNER }}" \
+            --query authorizationToken --output text --region eu-west-1)
+          echo "PIP_INDEX_URL=https://aws:${CODEARTIFACT_AUTH_TOKEN}@${{ secrets.AWSUTILS_CODEARTIFACT_ENDPOINT }}" >> $GITHUB_ENV
+
+      - name: Get Latest Version (AWS Utils)
+        id: awsutils
+        run: |
+          VERSION=$(aws ssm get-parameter \
+            --name "${{ secrets.AWSUTILS_VERSION_SSM_PARAMETER }}" \
+            --query "Parameter.Value" --output text --region eu-west-1)
+          echo "AWSUTILS_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Build Dependency Wheels (AWS Utils)
+        run: |
+          PACKAGE="equicast-awsutils"
+          VERSION="${AWSUTILS_VERSION#v}"
+          pip wheel "$PACKAGE==$VERSION" \
+            --wheel-dir wheels --index-url $PIP_INDEX_URL --extra-index-url https://pypi.org/simple
+
       - name: Login to CodeArtifact (Python Utils)
         id: capyutils
         run: |
@@ -58,30 +82,6 @@ jobs:
           mkdir -p wheels
           PACKAGE="equicast-pyutils"
           VERSION="${PYUTILS_VERSION#v}"
-          pip wheel "$PACKAGE==$VERSION" \
-            --wheel-dir wheels --index-url $PIP_INDEX_URL --extra-index-url https://pypi.org/simple
-
-      - name: Login to CodeArtifact (AWS Utils)
-        id: caawsutils
-        run: |
-          export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
-            --domain "${{ secrets.CODEARTIFACT_DOMAIN }}" \
-            --domain-owner "${{ secrets.CODEARTIFACT_OWNER }}" \
-            --query authorizationToken --output text --region eu-west-1)
-          echo "PIP_INDEX_URL=https://aws:${CODEARTIFACT_AUTH_TOKEN}@${{ secrets.AWSUTILS_CODEARTIFACT_ENDPOINT }}" >> $GITHUB_ENV
-
-      - name: Get Latest Version (AWS Utils)
-        id: awsutils
-        run: |
-          VERSION=$(aws ssm get-parameter \
-            --name "${{ secrets.AWSUTILS_VERSION_SSM_PARAMETER }}" \
-            --query "Parameter.Value" --output text --region eu-west-1)
-          echo "AWSUTILS_VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: Build Dependency Wheels (AWS Utils)
-        run: |
-          PACKAGE="equicast-awsutils"
-          VERSION="${AWSUTILS_VERSION#v}"
           pip wheel "$PACKAGE==$VERSION" \
             --wheel-dir wheels --index-url $PIP_INDEX_URL --extra-index-url https://pypi.org/simple
 
