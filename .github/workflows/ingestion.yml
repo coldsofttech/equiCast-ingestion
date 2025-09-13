@@ -79,7 +79,6 @@ jobs:
 
       - name: Build Dependency Wheels (Python Utils)
         run: |
-          mkdir -p wheels
           PACKAGE="equicast-pyutils"
           VERSION="${PYUTILS_VERSION#v}"
           pip wheel "$PACKAGE==$VERSION" \
@@ -88,7 +87,7 @@ jobs:
       - name: Build Dependency Wheels
         run: |
           export PIP_INDEX_URL=https://pypi.org/simple
-          pip wheel -r requirements.txt -r requirements-dev.txt --wheel-dir wheels
+          pip wheel -r requirements.txt -r requirements-dev.txt --wheel-dir wheels --ignore-installed || true
 
       - name: Cache Dependency Wheels
         uses: actions/cache@v4
