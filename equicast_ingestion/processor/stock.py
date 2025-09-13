@@ -29,8 +29,7 @@ class StockProcessor:
         if not os.path.exists(filename):
             print(f"💲 Fetching stock prices for {extractor.ticker}.")
             price_data = extractor.extract_stock_price_data()
-            if price_data:
-                price_data.to_parquet(filename)
+            price_data.to_parquet(filename)
 
     @staticmethod
     def _process_dividends(extractor: StockDataExtractor, folder: str):
@@ -38,8 +37,7 @@ class StockProcessor:
         if not os.path.exists(filename):
             print(f"💰 Fetching dividends for {extractor.ticker}.")
             dividends = extractor.extract_dividends()
-            if dividends:
-                dividends.to_parquet(os.path.join(folder, "dividends.parquet"))
+            dividends.to_parquet(filename)
 
     def _process_ticker(self, ticker: str):
         print(f"📥 Fetching ticker data for {ticker}.")
@@ -51,7 +49,7 @@ class StockProcessor:
             self._process_dividends(stock_extractor, folder_path)
             return {"success": True, "folder": folder_path}
         except Exception as e:
-            return {"error": f"Failed to extract ticker data: {e}."}
+            return {"success": False, "error": f"Failed to extract ticker data: {e}."}
 
     def _remove_delisted_tickers(self):
         for ticker in self.ticker_status:
@@ -104,9 +102,8 @@ class StockProcessor:
             time.sleep(random.uniform(5, 10))
 
         if errors:
-            with open(os.path.join(self.stock_download_dir, "error.log"), "w", encoding="utf-8") as f:
+            log_path = os.path.join(self.stock_download_dir, "error.log")
+            with open(log_path, "w", encoding="utf-8") as f:
                 for fx, err in errors.items():
                     f.write(f"{fx}: {err}\n")
-
-        if errors:
-            print(f"⚠️ {len(errors)} errors logged to 'error.log'.")
+            print(f"⚠️ {len(errors)} errors logged to '{log_path}'.")

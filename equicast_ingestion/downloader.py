@@ -2,8 +2,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-import boto3
-from botocore.exceptions import ClientError
+from equicast_awsutils import S3
 
 
 @dataclass
@@ -28,38 +27,25 @@ class Downloader:
             }
         }
     )
-    s3: boto3.client = field(init=False)
 
     def __post_init__(self):
         os.makedirs(self.download_dir, exist_ok=True)
-        self.s3 = boto3.client("s3", region_name=self.region_name)
-
-    def _download_file(self, bucket: str, key: str, required: bool):
-        local_path = os.path.join(self.download_dir, key)
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
-
-        try:
-            print(f"Downloading {key} from {bucket} to {local_path}.")
-            self.s3.download_file(bucket, key, local_path)
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "404":
-                if required:
-                    raise FileNotFoundError(f"❌ Mandatory file {key} not found in {bucket}.") from e
-                else:
-                    print(f"⚠️ Optional file {key} not available in {bucket}.")
-            else:
-                raise e
 
     def download(self, data_type: str):
         if data_type not in self.buckets:
             raise ValueError("data_type must be either 'fx' or 'stock'.")
 
         bucket_name = self.buckets[data_type]
-        m_files = self.files[data_type]["mandatory"]
-        o_files = self.files[data_type]["optional"]
+        files = []
+        for file_name in self.files[data_type]["mandatory"]:
+            files.append({'key': file_name, 'mandatory': True})
 
-        for file_name in m_files:
-            self._download_file(bucket_name, file_name, required=True)
+        for file_name in self.files[data_type]["optional"]:
+            files.append({'key': file_name, 'mandatory': False})
 
-        for file_name in o_files:
-            self._download_file(bucket_name, file_name, required=False)
+        s3_obj = S3(bucket_name=bucket_name, region_name=self.region_name)
+        status = s3_obj.download_files(local_dir=self.download_dir, files=files)
+        if len(status.get("missing_mandatory", [])) > 0:
+            print(f"⚠️ Some of the mandatory files are missing: {status.get('missing_mandatory')}")
+        elif len(files) == len(status.get("downloaded", [])):
+            print(f"✅ Successfully downloaded {len(files)} files")
