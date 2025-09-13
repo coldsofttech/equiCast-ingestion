@@ -33,7 +33,7 @@ class FxProcessor:
             fx_data.to_parquet(filepath)
             return {"success": True, "file": filepath}
         except Exception as e:
-            return {"error": f"Failed to extract fx data: {e}."}
+            return {"success": False, "error": f"Failed to extract fx data: {e}."}
 
     def process(self):
         with open(os.path.join(self.download_dir, self.fx_file), "r") as f:
@@ -77,9 +77,8 @@ class FxProcessor:
             time.sleep(random.uniform(5, 10))
 
         if errors:
-            with open(os.path.join(self.fx_download_dir, "error.log"), "w", encoding="utf-8") as f:
+            log_path = os.path.join(self.fx_download_dir, "error.log")
+            with open(log_path, "w", encoding="utf-8") as f:
                 for fx, err in errors.items():
                     f.write(f"{fx}: {err}\n")
-
-        if errors:
-            print(f"⚠️ {len(errors)} errors logged to 'error.log'.")
+            print(f"⚠️ {len(errors)} errors logged to '{log_path}'.")
