@@ -36,21 +36,59 @@ jobs:
           aws-region: eu-west-1
           role-session-name: GitHubActionsSession
 
-      - name: Login to CodeArtifact
-        id: codeartifact
+      - name: Login to CodeArtifact (Python Utils)
+        id: capyutils
         run: |
           export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
-            --domain "${{ secrets.PYUTILS_CODEARTIFACT_DOMAIN }}" \
-            --domain-owner "${{ secrets.PYUTILS_CODEARTIFACT_OWNER }}" \
+            --domain "${{ secrets.CODEARTIFACT_DOMAIN }}" \
+            --domain-owner "${{ secrets.CODEARTIFACT_OWNER }}" \
             --query authorizationToken --output text --region eu-west-1)
           echo "PIP_INDEX_URL=https://aws:${CODEARTIFACT_AUTH_TOKEN}@${{ secrets.PYUTILS_CODEARTIFACT_ENDPOINT }}" >> $GITHUB_ENV
 
-      - name: Build Dependency Wheels
+      - name: Get Latest Version (Python Utils)
+        id: pyutils
+        run: |
+          VERSION=$(aws ssm get-parameter \
+            --name "${{ secrets.PYUTILS_VERSION_SSM_PARAMETER }}" \
+            --query "Parameter.Value" --output text --region eu-west-1)
+          echo "PYUTILS_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Build Dependency Wheels (Python Utils)
         run: |
           mkdir -p wheels
-          pip wheel -r requirements.txt -r requirements-dev.txt \
-            --wheel-dir wheels --extra-index-url https://pypi.org/simple
-          ls wheels
+          PACKAGE="equicast-pyutils"
+          VERSION="${PYUTILS_VERSION#v}"
+          pip wheel "$PACKAGE==$VERSION" \
+            --wheel-dir wheels --index-url $PIP_INDEX_URL --extra-index-url https://pypi.org/simple
+
+      - name: Login to CodeArtifact (AWS Utils)
+        id: caawsutils
+        run: |
+          export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
+            --domain "${{ secrets.CODEARTIFACT_DOMAIN }}" \
+            --domain-owner "${{ secrets.CODEARTIFACT_OWNER }}" \
+            --query authorizationToken --output text --region eu-west-1)
+          echo "PIP_INDEX_URL=https://aws:${CODEARTIFACT_AUTH_TOKEN}@${{ secrets.AWSUTILS_CODEARTIFACT_ENDPOINT }}" >> $GITHUB_ENV
+
+      - name: Get Latest Version (AWS Utils)
+        id: awsutils
+        run: |
+          VERSION=$(aws ssm get-parameter \
+            --name "${{ secrets.AWSUTILS_VERSION_SSM_PARAMETER }}" \
+            --query "Parameter.Value" --output text --region eu-west-1)
+          echo "AWSUTILS_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Build Dependency Wheels (AWS Utils)
+        run: |
+          PACKAGE="equicast-awsutils"
+          VERSION="${AWSUTILS_VERSION#v}"
+          pip wheel "$PACKAGE==$VERSION" \
+            --wheel-dir wheels --index-url $PIP_INDEX_URL --extra-index-url https://pypi.org/simple
+
+      - name: Build Dependency Wheels
+        run: |
+          export PIP_INDEX_URL=https://pypi.org/simple
+          pip wheel -r requirements.txt -r requirements-dev.txt --wheel-dir wheels
 
       - name: Cache Dependency Wheels
         uses: actions/cache@v4
@@ -60,7 +98,6 @@ jobs:
 
       - name: Build Package
         run: |
-          export PIP_INDEX_URL=https://pypi.org/simple
           python -m build
 
       - name: Cache Built Package
@@ -104,10 +141,13 @@ jobs:
           pip install wheels/* --no-index --find-links wheels
 
       - name: Install Package
-        run: pip install dist/*.whl
+        run: |
+          pip install dist/*.whl
 
       - name: Run Test Cases
-        run: pytest tests -vv -rEPW -o pytest_collection_order=alphabetical --cache-clear --color=yes --html=pytest_results.html --self-contained-html
+        run: |
+          pytest tests -vv -rEPW -o pytest_collection_order=alphabetical \
+            --cache-clear --color=yes --html=pytest_results.html --self-contained-html
 
       - name: Upload Test Report
         if: always()
@@ -152,7 +192,8 @@ jobs:
           pip install wheels/* --no-index --find-links wheels
 
       - name: Install Package
-        run: pip install dist/*.whl
+        run: |
+          pip install dist/*.whl
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -213,7 +254,8 @@ jobs:
           pip install wheels/* --no-index --find-links wheels
 
       - name: Install Package
-        run: pip install dist/*.whl
+        run: |
+          pip install dist/*.whl
 
       - name: Run FX Processor
         run: |
@@ -274,7 +316,8 @@ jobs:
           pip install wheels/* --no-index --find-links wheels
 
       - name: Install Package
-        run: pip install dist/*.whl
+        run: |
+          pip install dist/*.whl
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -286,11 +329,18 @@ jobs:
       - name: Estimate S3 Storage Cost
         id: s3_fx
         run: |
-          python scripts/calculate_s3_cost.py fx_downloads '*.parquet' 'FX Pair Outputs'
+          python scripts/calculate_s3_cost.py \
+            --directory-path "fx_downloads" \
+            --file-pattern "*.parquet"
 
       - name: Upload FX Pair Parquet Files
         run: |
-          python scripts/uploader.py fx_downloads '*.parquet' 'Upload FX Pair Parquet Files' 'equicast-ingestion' 'fx'
+          python scripts/uploader.py \
+            --directory-path "fx_downloads" \
+            --file-pattern "*.parquet" \
+            --custom-message "Upload FX Pair Parquet Files" \
+            --s3-bucket "equicast-ingestion" \
+            --mode "fx"
 
   split-stock:
     if: >

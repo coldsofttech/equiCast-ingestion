@@ -25,6 +25,7 @@ def mock_s3():
         yield instance
 
 
+@pytest.mark.ca
 def test_collect_files(tmp_dir):
     cfg = UploadConfig(directory=tmp_dir, pattern="*.parquet", message="msg", bucket="bucket", mode="generic")
     up = Uploader(cfg)
@@ -33,6 +34,7 @@ def test_collect_files(tmp_dir):
     assert len(files) == 2
 
 
+@pytest.mark.ca
 def test_make_key_generic(tmp_dir):
     cfg = UploadConfig(directory=tmp_dir, pattern="*.parquet", message="msg", bucket="bucket", mode="generic")
     up = Uploader(cfg)
@@ -40,6 +42,7 @@ def test_make_key_generic(tmp_dir):
     assert up._make_key(file.with_suffix(".dat")) == "random.dat"
 
 
+@pytest.mark.ca
 def test_make_key_stock(tmp_dir):
     cfg = UploadConfig(directory=tmp_dir, pattern="*.parquet", message="msg", bucket="bucket", mode="stock")
     up = Uploader(cfg)
@@ -47,6 +50,7 @@ def test_make_key_stock(tmp_dir):
     assert up._make_key(file) == "ticker=AAPL/stock_price.parquet"
 
 
+@pytest.mark.ca
 def test_make_key_fx(tmp_dir):
     cfg = UploadConfig(directory=tmp_dir, pattern="*.parquet", message="msg", bucket="bucket", mode="fx")
     up = Uploader(cfg)
@@ -54,6 +58,7 @@ def test_make_key_fx(tmp_dir):
     assert up._make_key(file) == "fxpair=EURUSD/fx_history.parquet"
 
 
+@pytest.mark.ca
 def test_make_key_invalid_mode(tmp_dir):
     cfg = UploadConfig(directory=tmp_dir, pattern="*.parquet", message="msg", bucket="bucket", mode="invalid")
     up = Uploader(cfg)
@@ -61,6 +66,7 @@ def test_make_key_invalid_mode(tmp_dir):
         up._make_key(tmp_dir / "EURUSD.parquet")
 
 
+@pytest.mark.ca
 def test_upload_all_success(tmp_dir, mock_s3, capsys):
     cfg = UploadConfig(directory=tmp_dir, pattern="*.parquet", message="msg", bucket="bucket", mode="generic")
     up = Uploader(cfg)
@@ -70,6 +76,7 @@ def test_upload_all_success(tmp_dir, mock_s3, capsys):
     assert "✅ Successfully uploaded" in captured.out
 
 
+@pytest.mark.ca
 def test_upload_all_fail(tmp_dir, mock_s3, capsys):
     cfg = UploadConfig(directory=tmp_dir, pattern="*.parquet", message="msg", bucket="bucket", mode="generic")
     up = Uploader(cfg)
@@ -79,6 +86,7 @@ def test_upload_all_fail(tmp_dir, mock_s3, capsys):
     assert "⚠️ Upload failed" in captured.out
 
 
+@pytest.mark.ca
 def test_upload_some_success(tmp_dir, mock_s3, capsys):
     cfg = UploadConfig(directory=tmp_dir, pattern="*.parquet", message="msg", bucket="bucket", mode="generic")
     up = Uploader(cfg)
@@ -88,6 +96,7 @@ def test_upload_some_success(tmp_dir, mock_s3, capsys):
     assert "⚠️ Upload failed" in captured.out
 
 
+@pytest.mark.ca
 def test_upload_no_files(tmp_path, mock_s3, capsys):
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()
@@ -99,6 +108,7 @@ def test_upload_no_files(tmp_path, mock_s3, capsys):
     mock_s3.upload_files.assert_not_called()
 
 
+@pytest.mark.ca
 def test_write_summary_and_outputs(tmp_dir, mock_s3, tmp_path):
     cfg = UploadConfig(directory=tmp_dir, pattern="*.parquet", message="msg", bucket="bucket", mode="generic")
     up = Uploader(cfg)
