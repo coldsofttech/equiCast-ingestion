@@ -97,6 +97,7 @@ jobs:
 
       - name: Build Package
         run: |
+          export PIP_INDEX_URL=https://pypi.org/simple
           python -m build
 
       - name: Cache Built Package
