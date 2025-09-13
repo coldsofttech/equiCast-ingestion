@@ -141,6 +141,7 @@ jobs:
         run: |
           pip install wheels/* --no-index --find-links wheels
           pip install -r requirements-dev.txt
+          pip install -r requirements.txt
 
       - name: Install Package
         run: |
@@ -192,6 +193,7 @@ jobs:
       - name: Install Dependencies from Wheels
         run: |
           pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements.txt
 
       - name: Install Package
         run: |
@@ -254,6 +256,7 @@ jobs:
       - name: Install Dependencies from Wheels
         run: |
           pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements.txt
 
       - name: Install Package
         run: |
@@ -316,6 +319,7 @@ jobs:
       - name: Install Dependencies from Wheels
         run: |
           pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements.txt
 
       - name: Install Package
         run: |
