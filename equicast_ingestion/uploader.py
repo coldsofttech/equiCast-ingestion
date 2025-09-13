@@ -1,8 +1,8 @@
 import fnmatch
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 from equicast_awsutils import S3
 

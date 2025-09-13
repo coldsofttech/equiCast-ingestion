@@ -24,13 +24,14 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r requirements-dev.txt || true
 
       - name: Execute Lint
-        run: flake8 --verbose --color auto --count --statistics --format=default --output-file=flake8-report
+        run: |
+          flake8 --verbose --color auto --count --statistics --format=default --output-file=flake8-report
 
       - name: Upload Lint Report
-        if: ${{ always() }}
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lint-report
@@ -55,20 +56,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
-          pip install --target=equicast_ingestion/_vendor -r requirements.txt || true
+          pip install -r requirements.txt || true
 
       - name: Build Package
-        run: python setup.py sdist bdist_wheel
-
-      - name: Get Package
         run: |
-          path_separator="/"
-          latestFile=$(ls -t dist/ | head -n 1)
-          echo "Latest file: $latestFile"
-          echo "PACKAGE_NAME=dist$path_separator$latestFile" >> $GITHUB_ENV
+          python setup.py sdist bdist_wheel
 
       - name: Install Package
-        run: pip install ${{ env.PACKAGE_NAME }}
+        run: |
+          pip install .
 
       - name: Upload Package
         uses: actions/upload-artifact@v4
