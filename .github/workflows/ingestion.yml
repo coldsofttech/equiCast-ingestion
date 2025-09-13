@@ -139,6 +139,7 @@ jobs:
       - name: Install Dependencies from Wheels
         run: |
           pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements-dev.txt
 
       - name: Install Package
         run: |
