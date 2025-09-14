@@ -389,9 +389,11 @@ jobs:
       - name: Install Dependencies from Wheels
         run: |
           pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements.txt
 
       - name: Install Package
-        run: pip install dist/*.whl
+        run: |
+          pip install dist/*.whl
 
       - name: Run Splitter
         id: gen_matrix
@@ -400,7 +402,10 @@ jobs:
         run: |
           CHUNK_SIZE=$CHUNK_SIZE
           echo "🔢 Using CHUNK_SIZE=$CHUNK_SIZE"
-          python scripts/splitter.py downloads/tickers.json $CHUNK_SIZE 'stock' 
+          python scripts/splitter.py \
+            --file-path "downloads/tickers.json" \
+            --chunk-size $CHUNK_SIZE \
+            --mode "stock" 
           echo "🔁 Reading chunk IDs from file..."
           MATRIX=$(jq -c . < stock_chunks.json)
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
@@ -455,14 +460,17 @@ jobs:
       - name: Install Dependencies from Wheels
         run: |
           pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements.txt
 
       - name: Install Package
-        run: pip install dist/*.whl
+        run: |
+          pip install dist/*.whl
 
       - name: Run Stock Processor
         run: |
           echo "🚀 Running for chunk ID: ${{ matrix.chunk_id }}"
-          python scripts/stock_processor.py "stock_chunks/chunk_${{ matrix.chunk_id }}.json"
+          python scripts/stock_process.py \
+            --ticker-file "stock_chunks/chunk_${{ matrix.chunk_id }}.json"
 
       - name: Cache "stock_downloads"
         uses: actions/cache@v4
@@ -517,9 +525,11 @@ jobs:
       - name: Install Dependencies from Wheels
         run: |
           pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements.txt
 
       - name: Install Package
-        run: pip install dist/*.whl
+        run: |
+          pip install dist/*.whl
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -531,8 +541,15 @@ jobs:
       - name: Estimate S3 Storage Cost
         id: s3_stock
         run: |
-          python scripts/calculate_s3_cost.py stock_downloads '*.parquet' 'Stock Ticker Outputs'
+          python scripts/calculate_s3_cost.py \
+            --directory-path "stock_downloads" \
+            --file-pattern "*.parquet"
 
       - name: Upload Stock Ticker Parquet Files
         run: |
-          python scripts/uploader.py stock_downloads '*.parquet' 'Upload Stock Ticker Parquet Files' 'equicast-ingestion' 'stock'
+          python scripts/uploader.py \
+            --directory-path "stock_downloads" \
+            --file-pattern "*.parquet" \
+            --custom-message "Upload Stock Ticker Parquet Files" \
+            --s3-bucket "equicast-ingestion" \
+            --mode "stock"

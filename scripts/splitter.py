@@ -1,31 +1,16 @@
-import sys
+import argparse
 
 from equicast_ingestion.splitter import Splitter
 
 
 def main():
-    if len(sys.argv) < 4:
-        print("Usage: python splitter.py <file_path> <chunk_size> <mode>")
-        print("Modes: stock | fx")
-        print(
-            "Example 1 (Stock):   "
-            "python splitter.py ./tickers.json 200 stock"
-        )
-        print(
-            "Example 2 (FX):      "
-            "python splitter.py ./fxpairs.json 100 fx"
-        )
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Split tickers into chunks")
+    parser.add_argument("--file-path", required=True, help="File path")
+    parser.add_argument("--chunk-size", type=int, required=True, help="Chunk size")
+    parser.add_argument("--mode", required=True, choices=["fx", "stock"], help="Splitter mode")
+    args = parser.parse_args()
 
-    filepath = sys.argv[1]
-    chunk_size = sys.argv[2]
-    mode = sys.argv[3]
-
-    splitter = Splitter(
-        filepath=filepath,
-        pref_chunk_size=int(chunk_size),
-        mode=mode
-    )
+    splitter = Splitter(mode=args.mode, filepath=args.file_path, pref_chunk_size=args.chunk_size)
     splitter.split()
 
 
