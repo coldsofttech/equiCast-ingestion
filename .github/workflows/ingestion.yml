@@ -24,6 +24,10 @@ jobs:
         with:
           python-version: 3.13
 
+      - name: Clean Wheels Directory
+        run: |
+          rm -rf wheels/*
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
