@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 
 import pandas as pd
 import pytest
-from equicast_pyutils.models.stock import CompanyProfileModel
+from equicast_pyutils.models.stock import CompanyProfileModel, FundamentalsModel
 
 from equicast_ingestion.processor import StockProcessor
 
@@ -145,6 +145,38 @@ def test_comp_profile_export(tmp_download_dir, ticker_file, mock_stock_extractor
 
     for ticker in ["AAPL", "MSFT"]:
         parquet_path = tmp_download_dir / "stock_downloads" / ticker / "company_profile.parquet"
+        assert parquet_path.exists()
+        df = pd.read_parquet(parquet_path)
+        for col in expected_columns:
+            assert col in df.columns
+
+
+@pytest.mark.ca
+def test_fundamentals_export(tmp_download_dir, ticker_file, mock_stock_extractor, patch_tqdm_sleep):
+    mock_profile_model = MagicMock()
+    mock_profile_model.to_parquet.side_effect = lambda path, *args, **kwargs: \
+        FundamentalsModel(ticker="AAPL").to_parquet(path)
+
+    with patch("equicast_pyutils.extractors.stock_data_extractor.StockDataExtractor") as MockExtractor:
+        MockExtractor.return_value.extract_fundamentals.return_value = mock_profile_model
+
+        processor = StockProcessor(
+            ticker_file=str(ticker_file),
+            stock_download_dir=str(tmp_download_dir / "stock_downloads"),
+            download_dir=str(tmp_download_dir),
+        )
+        processor.process()
+
+    expected_columns = [
+        "ticker", "currency", "day_low", "day_high", "day_open", "day_close", "day_average", "one_year_low",
+        "one_year_high", "one_year_open", "one_year_close", "one_year_average", "trailing_pe", "forward_pe",
+        "trailing_eps", "forward_eps", "peg", "price_to_book", "price_to_sales", "ev_ebitda", "gross_margin",
+        "operating_margin", "profit_margin", "return_on_equity", "return_on_assets", "debt_to_equity",
+        "free_cash_flow_per_share", "metadata"
+    ]
+
+    for ticker in ["AAPL", "MSFT"]:
+        parquet_path = tmp_download_dir / "stock_downloads" / ticker / "fundamentals.parquet"
         assert parquet_path.exists()
         df = pd.read_parquet(parquet_path)
         for col in expected_columns:

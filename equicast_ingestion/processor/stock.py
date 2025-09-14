@@ -47,6 +47,14 @@ class StockProcessor:
             comp_profile = extractor.extract_company_profile()
             comp_profile.to_parquet(filename)
 
+    @staticmethod
+    def _process_fundamentals(extractor: StockDataExtractor, folder: str):
+        filename = os.path.join(folder, "fundamentals.parquet")
+        if not os.path.exists(filename):
+            print(f"📈 Fetching fundamentals for {extractor.ticker}.")
+            fundamentals = extractor.extract_fundamentals()
+            fundamentals.to_parquet(filename)
+
     def _process_ticker(self, ticker: str):
         print(f"📥 Fetching ticker data for {ticker}.")
         stock_extractor = StockDataExtractor(ticker=ticker)
@@ -56,6 +64,7 @@ class StockProcessor:
             self._process_prices(stock_extractor, folder_path)
             self._process_dividends(stock_extractor, folder_path)
             self._process_company_profile(stock_extractor, folder_path)
+            self._process_fundamentals(stock_extractor, folder_path)
             return {"success": True, "folder": folder_path}
         except Exception as e:
             return {"success": False, "error": f"Failed to extract ticker data: {e}."}
