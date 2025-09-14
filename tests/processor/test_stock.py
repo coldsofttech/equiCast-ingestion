@@ -66,7 +66,7 @@ def test_ticker_status_file_missing(tmp_download_dir, ticker_file, mock_stock_ex
 
 
 @pytest.mark.ca
-def test_success_flow(tmp_download_dir, ticker_file, mock_stock_extractor, patch_tqdm_sleep):
+def test_stock_price_export(tmp_download_dir, ticker_file, mock_stock_extractor, patch_tqdm_sleep):
     mock_df = MagicMock()
 
     with patch("equicast_pyutils.extractors.stock_data_extractor.StockDataExtractor") as MockExtractor, \
@@ -89,6 +89,58 @@ def test_success_flow(tmp_download_dir, ticker_file, mock_stock_extractor, patch
         parquet_path = tmp_download_dir / "stock_downloads" / ticker / "stock_price.parquet"
         assert parquet_path.exists()
         assert parquet_path.read_text() == "parquet-data"
+
+
+@pytest.mark.ca
+def test_dividends_export(tmp_download_dir, ticker_file, mock_stock_extractor, patch_tqdm_sleep):
+    mock_df = MagicMock()
+
+    with patch("equicast_pyutils.extractors.stock_data_extractor.StockDataExtractor") as MockExtractor, \
+            patch("pandas.DataFrame.to_parquet") as mock_to_parquet:
+        MockExtractor.return_value.extract_stock_price_data.return_value = mock_df
+
+        def fake_to_parquet(path, *args, **kwargs):
+            Path(path).write_text("div-data")
+
+        mock_to_parquet.side_effect = fake_to_parquet
+
+        processor = StockProcessor(
+            ticker_file=str(ticker_file),
+            stock_download_dir=str(tmp_download_dir / "stock_downloads"),
+            download_dir=str(tmp_download_dir),
+        )
+        processor.process()
+
+    for ticker in ["AAPL", "MSFT"]:
+        parquet_path = tmp_download_dir / "stock_downloads" / ticker / "dividends.parquet"
+        assert parquet_path.exists()
+        assert parquet_path.read_text() == "div-data"
+
+
+@pytest.mark.ca
+def test_comp_profile_export(tmp_download_dir, ticker_file, mock_stock_extractor, patch_tqdm_sleep):
+    mock_df = MagicMock()
+
+    with patch("equicast_pyutils.extractors.stock_data_extractor.StockDataExtractor") as MockExtractor, \
+            patch("pandas.DataFrame.to_parquet") as mock_to_parquet:
+        MockExtractor.return_value.extract_stock_price_data.return_value = mock_df
+
+        def fake_to_parquet(path, *args, **kwargs):
+            Path(path).write_text("comp-profile-data")
+
+        mock_to_parquet.side_effect = fake_to_parquet
+
+        processor = StockProcessor(
+            ticker_file=str(ticker_file),
+            stock_download_dir=str(tmp_download_dir / "stock_downloads"),
+            download_dir=str(tmp_download_dir),
+        )
+        processor.process()
+
+    for ticker in ["AAPL", "MSFT"]:
+        parquet_path = tmp_download_dir / "stock_downloads" / ticker / "company_profile.parquet"
+        assert parquet_path.exists()
+        assert parquet_path.read_text() == "comp-profile-data"
 
 
 @pytest.mark.ca
