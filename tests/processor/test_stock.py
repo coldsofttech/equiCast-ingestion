@@ -97,7 +97,7 @@ def test_dividends_export(tmp_download_dir, ticker_file, mock_stock_extractor, p
 
     with patch("equicast_pyutils.extractors.stock_data_extractor.StockDataExtractor") as MockExtractor, \
             patch("pandas.DataFrame.to_parquet") as mock_to_parquet:
-        MockExtractor.return_value.extract_stock_price_data.return_value = mock_df
+        MockExtractor.return_value.extract_dividends.return_value = mock_df
 
         def fake_to_parquet(path, *args, **kwargs):
             Path(path).write_text("div-data")
@@ -123,7 +123,7 @@ def test_comp_profile_export(tmp_download_dir, ticker_file, mock_stock_extractor
 
     with patch("equicast_pyutils.extractors.stock_data_extractor.StockDataExtractor") as MockExtractor, \
             patch("pandas.DataFrame.to_parquet") as mock_to_parquet:
-        MockExtractor.return_value.extract_stock_price_data.return_value = mock_df
+        MockExtractor.return_value.extract_company_profile.return_value = mock_df
 
         def fake_to_parquet(path, *args, **kwargs):
             Path(path).write_text("comp-profile-data")
