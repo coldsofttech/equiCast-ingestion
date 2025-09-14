@@ -98,7 +98,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheels
-          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+          key: wheels-${{ github.run_id }}
 
       - name: Build Package
         run: |
@@ -139,7 +139,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheels
-          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+          key: wheels-${{ github.run_id }}
 
       - name: Install Dependencies from Wheels
         run: |
@@ -192,7 +192,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheels
-          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+          key: wheels-${{ github.run_id }}
 
       - name: Install Dependencies from Wheels
         run: |
@@ -249,7 +249,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheels
-          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+          key: wheels-${{ github.run_id }}
 
       - name: Restore "downloads"
         uses: actions/cache@v4
@@ -312,7 +312,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheels
-          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+          key: wheels-${{ github.run_id }}
 
       - name: Restore "fx_downloads"
         uses: actions/cache@v4
@@ -382,7 +382,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheels
-          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+          key: wheels-${{ github.run_id }}
 
       - name: Restore "downloads"
         uses: actions/cache@v4
@@ -453,7 +453,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheels
-          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+          key: wheels-${{ github.run_id }}
 
       - name: Restore "stock_chunks"
         uses: actions/cache@v4
@@ -518,7 +518,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheels
-          key: wheels-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+          key: wheels-${{ github.run_id }}
 
       - name: Restore "stock_downloads"
         uses: actions/cache@v4
