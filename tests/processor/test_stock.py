@@ -2,7 +2,9 @@ import json
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
+import pandas as pd
 import pytest
+from equicast_pyutils.models.stock import CompanyProfileModel
 
 from equicast_ingestion.processor import StockProcessor
 
@@ -119,16 +121,12 @@ def test_dividends_export(tmp_download_dir, ticker_file, mock_stock_extractor, p
 
 @pytest.mark.ca
 def test_comp_profile_export(tmp_download_dir, ticker_file, mock_stock_extractor, patch_tqdm_sleep):
-    mock_df = MagicMock()
+    mock_profile_model = MagicMock()
+    mock_profile_model.to_parquet.side_effect = lambda path, *args, **kwargs: \
+        CompanyProfileModel(ticker="AAPL").to_parquet(path)
 
-    with patch("equicast_pyutils.extractors.stock_data_extractor.StockDataExtractor") as MockExtractor, \
-            patch("pandas.DataFrame.to_parquet") as mock_to_parquet:
-        MockExtractor.return_value.extract_company_profile.return_value = mock_df
-
-        def fake_to_parquet(path, *args, **kwargs):
-            Path(path).write_text("comp-profile-data")
-
-        mock_to_parquet.side_effect = fake_to_parquet
+    with patch("equicast_pyutils.extractors.stock_data_extractor.StockDataExtractor") as MockExtractor:
+        MockExtractor.return_value.extract_company_profile.return_value = mock_profile_model
 
         processor = StockProcessor(
             ticker_file=str(ticker_file),
@@ -137,10 +135,20 @@ def test_comp_profile_export(tmp_download_dir, ticker_file, mock_stock_extractor
         )
         processor.process()
 
+    expected_columns = [
+        "ticker", "name", "quote_type", "exchange", "currency", "description",
+        "sector", "industry", "website", "beta", "payout_ratio", "dividend_rate",
+        "dividend_yield", "market_cap", "volume", "address_address1", "address_city",
+        "address_state", "address_zip", "address_country", "address_region",
+        "full_time_employees", "ceos", "ipo_date", "metadata"
+    ]
+
     for ticker in ["AAPL", "MSFT"]:
         parquet_path = tmp_download_dir / "stock_downloads" / ticker / "company_profile.parquet"
         assert parquet_path.exists()
-        assert parquet_path.read_text() == "comp-profile-data"
+        df = pd.read_parquet(parquet_path)
+        for col in expected_columns:
+            assert col in df.columns
 
 
 @pytest.mark.ca
