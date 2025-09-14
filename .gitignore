@@ -216,6 +216,7 @@ pytest_results.html
 stock_chunks/
 stock_downloads/
 stock_chunks.json
+test_downloads/
 fx_downloads/
 fx_chunks/
 tests/stock_chunks/
@@ -223,4 +224,5 @@ tests/stock_downloads/
 tests/stock_chunks.json
 tests/fx_downloads/
 tests/fx_chunks/
+tests/test_downloads/
 tickers.json
