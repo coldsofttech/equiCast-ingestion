@@ -469,7 +469,7 @@ jobs:
       - name: Run Stock Processor
         run: |
           echo "🚀 Running for chunk ID: ${{ matrix.chunk_id }}"
-          python scripts/stock_process.py \
+          python scripts/stock_processor.py \
             --ticker-file "stock_chunks/chunk_${{ matrix.chunk_id }}.json"
 
       - name: Cache "stock_downloads"
