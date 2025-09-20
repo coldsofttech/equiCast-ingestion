@@ -4,6 +4,7 @@ import os
 import random
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from equicast_pyutils.extractors.fx_data_extractor import FxDataExtractor
 from tqdm import tqdm
@@ -11,74 +12,96 @@ from tqdm import tqdm
 
 @dataclass
 class FxProcessor:
+    input_file: str
     download_dir: str = "downloads"
     fx_download_dir: str = "fx_downloads"
-    fx_file: str = "fxpairs.json"
-    fx_status_file: str = "fxpair_status.json"
+    fx_status_file: str = "fx_status.json"
     fx_pairs: dict = field(init=False)
-    fxpair_status: dict = field(default=None, init=False)
+    fx_status: dict = field(default=None, init=False)
+    full_run: bool = False
 
     def __post_init__(self):
         os.makedirs(self.fx_download_dir, exist_ok=True)
-        if not os.path.exists(os.path.join(self.download_dir, self.fx_file)):
-            raise RuntimeError(f"File {self.fx_file} does not exist!")
+        if not os.path.exists(self.input_file):
+            raise RuntimeError(f"File {self.input_file} does not exist!")
 
-    def _process_fx(self, fx: dict):
-        from_currency, to_currency = fx["from"], fx["to"]
-        print(f"📥 Fetching FX data for {from_currency} > {to_currency}.")
-        fx_extractor = FxDataExtractor(from_currency=from_currency, to_currency=to_currency)
-        try:
-            fx_data = fx_extractor.extract_fx_data()
-            filepath = os.path.join(self.fx_download_dir, f"{from_currency}{to_currency}.parquet")
-            fx_data.to_parquet(filepath)
-            return {"success": True, "file": filepath}
-        except Exception as e:
-            return {"success": False, "error": f"Failed to extract fx data: {e}."}
-
-    def process(self):
-        with open(os.path.join(self.download_dir, self.fx_file), "r") as f:
+        with open(self.input_file, "r") as f:
             self.fx_pairs = json.load(f)
 
-        remaining = self.fx_pairs.copy()
+    def _extractor(self, fx: str, method: str, file_name: str):
+        from_currency, to_currency = fx.split("/")
+        end = datetime.now(timezone.utc)
+        start = datetime(end.year, 1, 1)
+        print(f"📥 Fetching FX '{method}' for {from_currency} > {to_currency}.")
+
+        extractor = FxDataExtractor(
+            from_currency=from_currency,
+            to_currency=to_currency,
+            start_date=None if self.full_run else start,
+            end_date=None if self.full_run else end
+        )
+
+        try:
+            data = getattr(extractor, method)()
+            data.to_parquet(file_name, self.fx_download_dir)
+            return {"success": True, "file": file_name}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def _process_all(self, method: str, file_name: str):
+        remaining = self.fx_pairs
         max_retries = 5
         decay_rate = 0.2
         max_workers = 20
         min_workers = 5
         errors = {}
 
-        for attempt in range(0, max_retries):
+        for attempt in range(max_retries):
             factor = (1 - decay_rate) ** attempt
             c_workers = max(int(max_workers * factor), min_workers)
-            print(f"🔁 Attempt: {attempt + 1} with {c_workers} workers.")
+            print(f"🔁 Attempt {attempt + 1} with {c_workers} workers.")
 
             results = {}
             with concurrent.futures.ThreadPoolExecutor(max_workers=c_workers) as executor:
-                futures = {executor.submit(self._process_fx, fx): fx for fx in remaining}
+                futures = {executor.submit(self._extractor, fx, method, file_name): fx for fx in remaining}
                 for future in tqdm(
                         concurrent.futures.as_completed(futures),
                         total=len(remaining),
-                        desc="Fetching FX",
+                        desc=f"Fetching FX '{method}'",
                         unit="fx"
                 ):
-                    fx = futures[future]
-                    result = future.result()
-                    fx_key = f"{fx['from']}{fx['to']}"
-                    results[fx_key] = result
+                    fx: str = futures[future]
+                    result: dict = future.result()
+                    results[fx] = result
+                    if attempt == max_retries - 1 and result.get("error"):
+                        errors[fx] = result["error"]
 
-                    if attempt == max_retries - 1 and result.get("error", None):
-                        errors[fx_key] = result["error"]
-
-            failed = [fx for fx_key, fx in zip(results.keys(), remaining) if results[fx_key].get("error")]
+            failed = [fx for fx in remaining if results[fx].get("error")]
             if not failed:
                 break
 
-            print(f"🔁 Retrying {len(failed)} failed FX: {[f'{fx['from']}>{fx['to']}' for fx in failed]}.")
             remaining = failed
+            print(f"🔁 Retrying {len(failed)} failed FX: {failed}.")
             time.sleep(random.uniform(5, 10))
 
         if errors:
-            log_path = os.path.join(self.fx_download_dir, "error.log")
+            log_path = os.path.join(self.fx_download_dir, f"error_{method}.log")
             with open(log_path, "w", encoding="utf-8") as f:
                 for fx, err in errors.items():
                     f.write(f"{fx}: {err}\n")
             print(f"⚠️ {len(errors)} errors logged to '{log_path}'.")
+
+    def process_prices(self):
+        self._process_all("extract_fx_prices", "fx_prices.parquet")
+
+    def process_profile(self):
+        self._process_all("extract_fx_profile", "fx_profile.parquet")
+
+    def process_fundamentals(self):
+        self._process_all("extract_fx_fundamentals", "fx_fundamentals.parquet")
+
+    def process_calculations(self):
+        self._process_all("extract_fx_calculations", "fx_calculations.parquet")
+
+    def process_forecast(self):
+        self._process_all("extract_fx_forecast", "fx_forecast.parquet")

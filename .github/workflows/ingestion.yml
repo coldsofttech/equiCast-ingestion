@@ -2,8 +2,17 @@ name: Data Ingestion Schedule
 
 on:
   workflow_dispatch:
+    inputs:
+      full_run:
+        description: "Run Full Load Extraction"
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 1 * * *'  # Daily at 1 AM UTC
+    - cron: '0 9 * * 1'  # Weekly at 9 AM UTC (every Monday)
+    - cron: '0 13 1 * *'  # Monthly at 1 PM UTC (every 1st of Month)
+    - cron: '0 16 1 */3 *'  # Quarterly at 4 PM UTC (every 1st of 3rd Month)
 
 jobs:
   prepare-package:
@@ -112,9 +121,7 @@ jobs:
           key: built-package-${{ github.run_id }}
 
   test:
-    if: >
-      github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'workflow_dispatch'
     name: Execute Tests
     runs-on: ubuntu-latest
     needs: prepare-package
@@ -169,7 +176,7 @@ jobs:
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
     name: Download FX and Stock Tickers
     runs-on: ubuntu-latest
-    needs: test
+    needs: [ prepare-package, test ]
     permissions:
       contents: read
       id-token: write
@@ -212,7 +219,7 @@ jobs:
 
       - name: Run Downloader
         run: |
-          python scripts/downloader.py
+          python equicast_ingestion/scripts/downloader.py --mode "fx"
 
       - name: Cache "downloads"
         uses: actions/cache@v4
@@ -220,16 +227,17 @@ jobs:
           path: downloads
           key: downloads-${{ github.run_id }}
 
-  process-fx:
+  split-fx:
     if: >
       github.event_name == 'workflow_dispatch' || 
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
-    name: Process FX Pairs
+    name: Split FX
     runs-on: ubuntu-latest
     needs: download
     permissions:
       contents: read
-      id-token: write
+    outputs:
+      matrix: ${{ steps.gen_matrix.outputs.matrix }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -266,9 +274,90 @@ jobs:
         run: |
           pip install dist/*.whl
 
-      - name: Run FX Processor
+      - name: Run Splitter
+        id: gen_matrix
+        env:
+          CHUNK_SIZE: 20
         run: |
-          python scripts/fx_processor.py
+          CHUNK_SIZE=$CHUNK_SIZE
+          echo "🔢 Using CHUNK_SIZE=$CHUNK_SIZE"
+          python equicast_ingestion/scripts/splitter.py \
+            --file "downloads/fx.json" \
+            --chunk-size $CHUNK_SIZE \
+            --mode "fx"
+          echo "🔁 Reading chunk IDs from file..."
+          MATRIX=$(jq -c . < fx_chunks.json)
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+      - name: Cache "fx_chunks"
+        uses: actions/cache@v4
+        with:
+          path: fx_chunks
+          key: fx_chunks-${{ github.run_id }}
+
+  process-fx-prices-fundamentals:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main' && startsWith(github.event.schedule, '0 1'))
+    name: Process FX Prices & Fundamentals (Daily Job)
+    runs-on: ubuntu-latest
+    needs: split-fx
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: true
+      max-parallel: 25
+      matrix:
+        chunk_id: ${{ fromJson(needs.split-fx.outputs.matrix) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Restore Built Package Cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
+
+      - name: Restore Dependency Wheels
+        uses: actions/cache@v4
+        with:
+          path: wheels
+          key: wheels-${{ github.run_id }}
+
+      - name: Restore "fx_chunks"
+        uses: actions/cache@v4
+        with:
+          path: fx_chunks
+          key: fx_chunks-${{ github.run_id }}
+
+      - name: Install Dependencies from Wheels
+        run: |
+          pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements.txt
+
+      - name: Install Package
+        run: |
+          pip install dist/*.whl
+
+      - name: Run FX Prices
+        run: |
+          echo "🚀 Running for chunk ID: ${{ matrix.chunk_id }}"
+          python equicast_ingestion/scripts/fx/fx_prices.py \
+            --file "fx_chunks/chunk_${{ matrix.chunk_id }}.json"
+            ${{ github.event.inputs.full_run == 'true' && '--full-run' || '' }}
+
+      - name: Run FX Fundamentals
+        run: |
+          echo "🚀 Running for chunk ID: ${{ matrix.chunk_id }}"
+          python equicast_ingestion/scripts/fx/fx_fundamentals.py \
+            --file "fx_chunks/chunk_${{ matrix.chunk_id }}.json"
 
       - name: Cache "fx_downloads"
         uses: actions/cache@v4
@@ -276,20 +365,237 @@ jobs:
           path: fx_downloads
           key: fx_downloads-${{ github.run_id }}
 
-      - name: Upload "error.log"
+      - name: Upload "error_extract_fx_prices.log"
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: error-log
-          path: fx_downloads/error.log
+          name: error-fx-prices-log
+          path: fx_downloads/error_extract_fx_prices.log
+
+      - name: Upload "error_extract_fx_fundamentals.log"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-fx-fundamentals-log
+          path: fx_downloads/error_extract_fx_fundamentals.log
+
+  process-fx-calculations:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main' && startsWith(github.event.schedule, '0 9'))
+    name: Process FX Calculations (Weekly Job)
+    runs-on: ubuntu-latest
+    needs: split-fx
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: true
+      max-parallel: 25
+      matrix:
+        chunk_id: ${{ fromJson(needs.split-fx.outputs.matrix) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Restore Built Package Cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
+
+      - name: Restore Dependency Wheels
+        uses: actions/cache@v4
+        with:
+          path: wheels
+          key: wheels-${{ github.run_id }}
+
+      - name: Restore "fx_chunks"
+        uses: actions/cache@v4
+        with:
+          path: fx_chunks
+          key: fx_chunks-${{ github.run_id }}
+
+      - name: Install Dependencies from Wheels
+        run: |
+          pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements.txt
+
+      - name: Install Package
+        run: |
+          pip install dist/*.whl
+
+      - name: Run FX Calculations
+        run: |
+          echo "🚀 Running for chunk ID: ${{ matrix.chunk_id }}"
+          python equicast_ingestion/scripts/fx/fx_calculations.py \
+            --file "fx_chunks/chunk_${{ matrix.chunk_id }}.json"
+
+      - name: Cache "fx_downloads"
+        uses: actions/cache@v4
+        with:
+          path: fx_downloads
+          key: fx_downloads-${{ github.run_id }}
+
+      - name: Upload "error_extract_fx_calculations.log"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-fx-calculations-log
+          path: fx_downloads/error_extract_fx_calculations.log
+
+  process-fx-forecast:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main' && startsWith(github.event.schedule, '0 13'))
+    name: Process FX Forecast (Monthly Job)
+    runs-on: ubuntu-latest
+    needs: split-fx
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: true
+      max-parallel: 25
+      matrix:
+        chunk_id: ${{ fromJson(needs.split-fx.outputs.matrix) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Restore Built Package Cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
+
+      - name: Restore Dependency Wheels
+        uses: actions/cache@v4
+        with:
+          path: wheels
+          key: wheels-${{ github.run_id }}
+
+      - name: Restore "fx_chunks"
+        uses: actions/cache@v4
+        with:
+          path: fx_chunks
+          key: fx_chunks-${{ github.run_id }}
+
+      - name: Install Dependencies from Wheels
+        run: |
+          pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements.txt
+
+      - name: Install Package
+        run: |
+          pip install dist/*.whl
+
+      - name: Run FX Forecast
+        run: |
+          echo "🚀 Running for chunk ID: ${{ matrix.chunk_id }}"
+          python equicast_ingestion/scripts/fx/fx_forecast.py \
+            --file "fx_chunks/chunk_${{ matrix.chunk_id }}.json"
+
+      - name: Cache "fx_downloads"
+        uses: actions/cache@v4
+        with:
+          path: fx_downloads
+          key: fx_downloads-${{ github.run_id }}
+
+      - name: Upload "error_extract_fx_forecast.log"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-fx-forecast-log
+          path: fx_downloads/error_extract_fx_forecast.log
+
+  process-fx-profile:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main' && startsWith(github.event.schedule, '0 16'))
+    name: Process FX Profile (Quarterly Job)
+    runs-on: ubuntu-latest
+    needs: split-fx
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: true
+      max-parallel: 25
+      matrix:
+        chunk_id: ${{ fromJson(needs.split-fx.outputs.matrix) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Restore Built Package Cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: built-package-${{ github.run_id }}
+
+      - name: Restore Dependency Wheels
+        uses: actions/cache@v4
+        with:
+          path: wheels
+          key: wheels-${{ github.run_id }}
+
+      - name: Restore "fx_chunks"
+        uses: actions/cache@v4
+        with:
+          path: fx_chunks
+          key: fx_chunks-${{ github.run_id }}
+
+      - name: Install Dependencies from Wheels
+        run: |
+          pip install wheels/* --no-index --find-links wheels
+          pip install -r requirements.txt
+
+      - name: Install Package
+        run: |
+          pip install dist/*.whl
+
+      - name: Run FX Profile
+        run: |
+          echo "🚀 Running for chunk ID: ${{ matrix.chunk_id }}"
+          python equicast_ingestion/scripts/fx/fx_profile.py \
+            --file "fx_chunks/chunk_${{ matrix.chunk_id }}.json"
+
+      - name: Cache "fx_downloads"
+        uses: actions/cache@v4
+        with:
+          path: fx_downloads
+          key: fx_downloads-${{ github.run_id }}
+
+      - name: Upload "error_extract_fx_profile.log"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-fx-profile-log
+          path: fx_downloads/error_extract_fx_profile.log
 
   upload-fx:
     if: >
       github.event_name == 'workflow_dispatch' || 
       (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
-    name: Upload FX Pair Outputs
+    name: Upload FX Outputs
     runs-on: ubuntu-latest
-    needs: process-fx
+    needs: [ process-fx-prices-fundamentals, process-fx-calculations, process-fx-forecast, process-fx-profile ]
     permissions:
       contents: read
       id-token: write
@@ -339,221 +645,15 @@ jobs:
       - name: Estimate S3 Storage Cost
         id: s3_fx
         run: |
-          python scripts/calculate_s3_cost.py \
+          python equicast_ingestion/scripts/calculate_s3_cost.py \
             --directory-path "fx_downloads" \
             --file-pattern "*.parquet"
 
-      - name: Upload FX Pair Parquet Files
+      - name: Upload FX Parquet Files
         run: |
-          python scripts/uploader.py \
+          python equicast_ingestion/scripts/uploader.py \
             --directory-path "fx_downloads" \
             --file-pattern "*.parquet" \
-            --custom-message "Upload FX Pair Parquet Files" \
+            --custom-message "Upload FX Parquet Files" \
             --s3-bucket "equicast-ingestion" \
             --mode "fx"
-
-  split-stock:
-    if: >
-      github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
-    name: Split Stocks
-    runs-on: ubuntu-latest
-    needs: download
-    permissions:
-      contents: read
-    outputs:
-      matrix: ${{ steps.gen_matrix.outputs.matrix }}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.13
-
-      - name: Restore Built Package Cache
-        uses: actions/cache@v4
-        with:
-          path: dist
-          key: built-package-${{ github.run_id }}
-
-      - name: Restore Dependency Wheels
-        uses: actions/cache@v4
-        with:
-          path: wheels
-          key: wheels-${{ github.run_id }}
-
-      - name: Restore "downloads"
-        uses: actions/cache@v4
-        with:
-          path: downloads
-          key: downloads-${{ github.run_id }}
-
-      - name: Install Dependencies from Wheels
-        run: |
-          pip install wheels/* --no-index --find-links wheels
-          pip install -r requirements.txt
-
-      - name: Install Package
-        run: |
-          pip install dist/*.whl
-
-      - name: Run Splitter
-        id: gen_matrix
-        env:
-          CHUNK_SIZE: 200
-        run: |
-          CHUNK_SIZE=$CHUNK_SIZE
-          echo "🔢 Using CHUNK_SIZE=$CHUNK_SIZE"
-          python scripts/splitter.py \
-            --file-path "downloads/tickers.json" \
-            --chunk-size $CHUNK_SIZE \
-            --mode "stock" 
-          echo "🔁 Reading chunk IDs from file..."
-          MATRIX=$(jq -c . < stock_chunks.json)
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
-
-      - name: Cache "stock_chunks"
-        uses: actions/cache@v4
-        with:
-          path: stock_chunks
-          key: stock_chunks-${{ github.run_id }}
-
-  process-stock:
-    if: >
-      github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
-    name: Process Stocks
-    runs-on: ubuntu-latest
-    needs: split-stock
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: true
-      max-parallel: 25
-      matrix:
-        chunk_id: ${{ fromJson(needs.split-stock.outputs.matrix) }}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.13
-
-      - name: Restore Built Package Cache
-        uses: actions/cache@v4
-        with:
-          path: dist
-          key: built-package-${{ github.run_id }}
-
-      - name: Restore Dependency Wheels
-        uses: actions/cache@v4
-        with:
-          path: wheels
-          key: wheels-${{ github.run_id }}
-
-      - name: Restore "stock_chunks"
-        uses: actions/cache@v4
-        with:
-          path: stock_chunks
-          key: stock_chunks-${{ github.run_id }}
-
-      - name: Install Dependencies from Wheels
-        run: |
-          pip install wheels/* --no-index --find-links wheels
-          pip install -r requirements.txt
-
-      - name: Install Package
-        run: |
-          pip install dist/*.whl
-
-      - name: Run Stock Processor
-        run: |
-          echo "🚀 Running for chunk ID: ${{ matrix.chunk_id }}"
-          python scripts/stock_processor.py \
-            --ticker-file "stock_chunks/chunk_${{ matrix.chunk_id }}.json"
-
-      - name: Cache "stock_downloads"
-        uses: actions/cache@v4
-        with:
-          path: stock_downloads
-          key: stock_downloads-${{ github.run_id }}
-
-      - name: Upload "error.log"
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: error-log-${{ matrix.chunk_id }}
-          path: stock_downloads/error.log
-
-  upload-stock:
-    if: >
-      github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
-    name: Upload Stock Ticker Outputs
-    runs-on: ubuntu-latest
-    needs: process-stock
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.13
-
-      - name: Restore Built Package Cache
-        uses: actions/cache@v4
-        with:
-          path: dist
-          key: built-package-${{ github.run_id }}
-
-      - name: Restore Dependency Wheels
-        uses: actions/cache@v4
-        with:
-          path: wheels
-          key: wheels-${{ github.run_id }}
-
-      - name: Restore "stock_downloads"
-        uses: actions/cache@v4
-        with:
-          path: stock_downloads
-          key: stock_downloads-${{ github.run_id }}
-
-      - name: Install Dependencies from Wheels
-        run: |
-          pip install wheels/* --no-index --find-links wheels
-          pip install -r requirements.txt
-
-      - name: Install Package
-        run: |
-          pip install dist/*.whl
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: eu-west-1
-          role-session-name: GitHubActionsSession
-
-      - name: Estimate S3 Storage Cost
-        id: s3_stock
-        run: |
-          python scripts/calculate_s3_cost.py \
-            --directory-path "stock_downloads" \
-            --file-pattern "*.parquet"
-
-      - name: Upload Stock Ticker Parquet Files
-        run: |
-          python scripts/uploader.py \
-            --directory-path "stock_downloads" \
-            --file-pattern "*.parquet" \
-            --custom-message "Upload Stock Ticker Parquet Files" \
-            --s3-bucket "equicast-ingestion" \
-            --mode "stock"
