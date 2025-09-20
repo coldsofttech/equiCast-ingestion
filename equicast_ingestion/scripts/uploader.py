@@ -1,17 +1,17 @@
 import argparse
 from pathlib import Path
 
-from equicast_ingestion import UploadConfig, Uploader
+from equicast_ingestion.helpers import UploadConfig, Uploader
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Upload files to S3 bucket")
-    parser.add_argument("--directory-path", required=True, help="Directory path")
-    parser.add_argument("--file-pattern", required=True, help="File pattern. Example: *.json, *.parquet")
-    parser.add_argument("--custom-message", required=True, help="Custom message")
-    parser.add_argument("--s3-bucket", required=True, help="S3 bucket")
+    parser = argparse.ArgumentParser(description="S3: Upload Files")
+    parser.add_argument("--directory-path", required=True, help="Directory Path")
+    parser.add_argument("--file-pattern", required=True, help="File Pattern. Example: *.json, *.parquet")
+    parser.add_argument("--custom-message", required=True, help="Custom Message")
+    parser.add_argument("--s3-bucket", required=True, help="S3 Bucket")
     parser.add_argument("--mode", required=True, choices=["generic", "fx", "stock"], default="generic", help="Mode")
-    parser.add_argument("--s3-prefix", required=False, default="", help="S3 prefix")
+    parser.add_argument("--s3-prefix", required=False, default="", help="S3 Prefix")
     args = parser.parse_args()
 
     dir_path = Path(args.directory_path)

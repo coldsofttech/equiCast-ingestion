@@ -24,7 +24,7 @@ class Splitter:
 
         seen = set()
         unique_elements = []
-        if self.mode == "stock":
+        if self.mode in ["stock", "fx"]:
             for element in elements:
                 if element not in seen:
                     seen.add(element)
@@ -55,5 +55,3 @@ class Splitter:
                 json.dump(chunk_ids, f)
 
             print("✅ Processed all tickers.")
-        elif self.mode == "fx":
-            raise NotImplementedError()
