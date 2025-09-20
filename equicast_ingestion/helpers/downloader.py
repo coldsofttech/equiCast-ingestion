@@ -11,14 +11,14 @@ class Downloader:
     region_name: str = "eu-west-1"
     buckets: Dict[str, str] = field(
         default_factory=lambda: {
-            "fx": "equicast-fxpairs",
+            "fx": "equicast-tickers",
             "stock": "equicast-tickers"
         }
     )
     files: Dict[str, Dict[str, List[str]]] = field(
         default_factory=lambda: {
             "fx": {
-                "mandatory": ["fxpairs.json"],
+                "mandatory": ["fx.json"],
                 "optional": []
             },
             "stock": {
