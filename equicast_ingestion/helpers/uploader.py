@@ -33,8 +33,8 @@ class Uploader:
             ticker = file.parent.name
             key = f"ticker={ticker}/{file.name}"
         elif self.config.mode == "fx":
-            fxpair = file.stem
-            key = f"fxpair={fxpair}/fx_history.parquet"
+            rel_path = file.relative_to(self.config.directory)
+            key = str(rel_path).replace("\\", "/")
         else:
             raise ValueError(f"Unknown mode: {self.config.mode}")
 
