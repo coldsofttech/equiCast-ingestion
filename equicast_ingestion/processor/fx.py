@@ -2,6 +2,7 @@ import concurrent.futures
 import json
 import os
 import random
+import tempfile
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -13,15 +14,18 @@ from tqdm import tqdm
 @dataclass
 class FxProcessor:
     input_file: str
-    download_dir: str = "downloads"
-    fx_download_dir: str = "fx_downloads"
+    max_workers: int = 20
+    max_retries: int = 5
     fx_status_file: str = "fx_status.json"
     fx_pairs: dict = field(init=False)
     fx_status: dict = field(default=None, init=False)
     full_run: bool = False
+    temp_dir: str = field(init=False)
 
     def __post_init__(self):
-        os.makedirs(self.fx_download_dir, exist_ok=True)
+        self.temp_dir = tempfile.mkdtemp(prefix="fx_downloads_")
+        os.makedirs(self.temp_dir, exist_ok=True)
+
         if not os.path.exists(self.input_file):
             raise RuntimeError(f"File {self.input_file} does not exist!")
 
@@ -43,17 +47,17 @@ class FxProcessor:
 
         try:
             data = getattr(extractor, method)()
-            data.to_parquet(file_name, self.fx_download_dir)
+            data.to_parquet(file_name, self.temp_dir)
             return {"success": True, "file": file_name}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
     def _process_all(self, method: str, file_name: str):
         remaining = self.fx_pairs
-        max_retries = 5
+        max_retries = self.max_retries
         decay_rate = 0.2
-        max_workers = 20
-        min_workers = 5
+        max_workers = self.max_workers
+        min_workers = int(self.max_workers / self.max_retries)
         errors = {}
 
         for attempt in range(max_retries):
@@ -85,7 +89,7 @@ class FxProcessor:
             time.sleep(random.uniform(5, 10))
 
         if errors:
-            log_path = os.path.join(self.fx_download_dir, f"error_{method}.log")
+            log_path = os.path.join(self.temp_dir, f"error_{method}.log")
             with open(log_path, "w", encoding="utf-8") as f:
                 for fx, err in errors.items():
                     f.write(f"{fx}: {err}\n")
@@ -93,15 +97,20 @@ class FxProcessor:
 
     def process_prices(self):
         self._process_all("extract_fx_prices", "fx_prices.parquet")
+        return self.temp_dir
 
     def process_profile(self):
         self._process_all("extract_fx_profile", "fx_profile.parquet")
+        return self.temp_dir
 
     def process_fundamentals(self):
         self._process_all("extract_fx_fundamentals", "fx_fundamentals.parquet")
+        return self.temp_dir
 
     def process_calculations(self):
         self._process_all("extract_fx_calculations", "fx_calculations.parquet")
+        return self.temp_dir
 
     def process_forecast(self):
         self._process_all("extract_fx_forecast", "fx_forecast.parquet")
+        return self.temp_dir

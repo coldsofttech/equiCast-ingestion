@@ -1,0 +1,32 @@
+name: "Run Downloader"
+description: "Run Downloader and cache the results"
+
+inputs:
+  mode:
+    description: "The 'mode' to run"
+    required: true
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+outputs:
+  download-dir:
+    description: "Temporary directory containing downloaded files"
+    value: ${{ steps.download.outputs.download_dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run Downloader
+      id: downloader
+      run: |
+        DOWNLOAD_DIR=$(python equicast_ingestion/scripts/downloader.py \
+          --mode ${{ inputs.mode }})
+        echo "download_dir=$DOWNLOAD_DIR" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: downloads-${{ inputs.mode }}-${{ inputs.run-id }}
+        path: ${{ steps.downloader.outputs.download_dir }}

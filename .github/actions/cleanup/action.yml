@@ -1,0 +1,47 @@
+name: "Cleanup"
+description: "Cleanup all the Artifacts"
+
+inputs:
+  gh-token:
+    description: "GitHub Token to download Artifacts via CLI"
+    required: true
+  gh-repository:
+    description: "GitHub Repository details"
+    required: true
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install GitHub CLI
+      run: |
+        sudo apt-get update && sudo apt-get install -y gh
+      shell: bash
+
+    - name: Cleanup All Artifacts
+      env:
+        GH_TOKEN: ${{ inputs.gh-token }}
+      run: |
+        echo "🧹 Deleting all artifacts in the repository..."
+        ARTIFACT_IDS=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          /repos/${{ inputs.gh-repository }}/actions/runs/${{ inputs.run-id }}/artifacts \
+              | jq -r '.artifacts[].id')
+        
+        if [ -z "$ARTIFACT_IDS" ]; then
+          echo "No artifacts found to delete."
+        else
+          for ID in $ARTIFACT_IDS; do
+            echo "Deleting artifact ID $ID..."
+            gh api \
+              --method DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/${{ inputs.gh-repository }}/actions/artifacts/$ID
+          done
+          echo "✅ All artifacts deleted."
+        fi
+      shell: bash

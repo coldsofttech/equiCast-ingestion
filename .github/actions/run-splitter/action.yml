@@ -1,0 +1,63 @@
+name: "Run Splitter"
+description: "Run Downloader and cache the results"
+
+inputs:
+  mode:
+    description: "The 'mode' to run"
+    required: true
+  chunk-size:
+    description: "The size of the chunk"
+    required: true
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+outputs:
+  matrix:
+    description: "Matrix of Chunk IDs"
+    value: ${{ steps.gen_matrix.outputs.matrix }}
+  chunk-dir:
+    description: "Temporary directory containing chunk files"
+    value: ${{ steps.gen_matrix.outputs.chunk_dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create Temp Directory
+      id: prep_download
+      run: |
+        DOWNLOAD_DIR="$(mktemp -d $RUNNER_TEMP/downloads.XXXXXX)"
+        echo "download_dir=$DOWNLOAD_DIR" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: downloads-${{ inputs.mode }}-${{ inputs.run-id }}
+        path: ${{ steps.prep_download.outputs.download_dir }}
+
+    - name: Run Splitter
+      id: gen_matrix
+      run: |
+        CHUNK_SIZE=${{ inputs.chunk-size }}
+        DOWNLOAD_FILE_NAME="${{ steps.prep_download.outputs.download_dir }}/${{ inputs.mode }}.json"
+        
+        echo "🔢 Using CHUNK_SIZE=$CHUNK_SIZE"
+        CHUNK_DIR=$(python equicast_ingestion/scripts/splitter.py \
+          --file $DOWNLOAD_FILE_NAME \
+          --chunk-size $CHUNK_SIZE \
+          --mode ${{ inputs.mode }} | tail -n 1)
+        
+        echo "chunk_dir=$CHUNK_DIR" >> $GITHUB_OUTPUT
+        CHUNK_FILE_NAME="$CHUNK_DIR/${{ inputs.mode }}_chunks.json"
+        
+        echo "🔁 Reading chunk IDs from file"
+        MATRIX=$(jq -c . < "$CHUNK_FILE_NAME")
+        echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: chunks-${{ inputs.mode }}-${{ inputs.run-id }}
+        path: ${{ steps.gen_matrix.outputs.chunk_dir }}

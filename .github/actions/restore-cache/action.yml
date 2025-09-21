@@ -1,0 +1,19 @@
+name: "Cache or Restore Cache"
+description: "Cache or Restore Cache, such as 'dist', 'downloads', etc."
+
+inputs:
+  path:
+    description: "The Path to cache or restore"
+    required: true
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore Cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.path }}-${{ inputs.run-id }}

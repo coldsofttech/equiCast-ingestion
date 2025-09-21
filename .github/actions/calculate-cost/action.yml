@@ -1,0 +1,62 @@
+name: "Run Uploader"
+description: "Run Uploader to upload the generated files"
+
+inputs:
+  pattern:
+    description: "The file pattern to upload"
+    required: true
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+  gh-token:
+    description: "GitHub Token to download Artifacts via CLI"
+    required: true
+
+outputs:
+  download-dir:
+    description: "Temporary directory containing all parquet files"
+    value: ${{ steps.prep_download.outputs.download_dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create Temp Directory
+      id: prep_download
+      run: |
+        DOWNLOAD_DIR="$(mktemp -d $RUNNER_TEMP/downloads.XXXXXX)"
+        echo "download_dir=$DOWNLOAD_DIR" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Install GitHub CLI
+      run: |
+        sudo apt-get update && sudo apt-get install -y gh
+      shell: bash
+
+    - name: Download All Artifacts
+      env:
+        GH_TOKEN: ${{ inputs.gh-token }}
+      run: |
+        set +e
+        DOWNLOAD_DIR="${{ steps.prep_download.outputs.download_dir }}"
+        PATTERN="*-downloads-*"
+        
+        TEMP_DIR="$(mktemp -d)"
+        echo "🔎 Trying to download artifacts with pattern '$PATTERN' for run ${{ inputs.run-id }}..."
+        gh run download ${{ inputs.run-id }} -p "$PATTERN" -D "$TEMP_DIR"
+        STATUS=$?
+        set -e
+        
+        if [ $STATUS -ne 0 ]; then
+          echo "⚠️ No artifacts found matching pattern '$PATTERN'. Skipping download."
+        else
+          cp -r "$TEMP_DIR"/* "$DOWNLOAD_DIR" || true
+          echo "✅ All artifacts downloaded $DOWNLOAD_DIR"
+        fi
+      shell: bash
+
+    - name: Estimate S3 Storage Cost
+      run: |
+        python equicast_ingestion/scripts/calculate_s3_cost.py \
+          --directory-path "${{ steps.prep_download.outputs.download_dir }}" \
+          --file-pattern "${{ inputs.pattern }}"
+      shell: bash

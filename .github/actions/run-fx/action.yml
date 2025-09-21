@@ -1,0 +1,96 @@
+name: "Run FX"
+description: "Run FX Processes"
+
+inputs:
+  process-name:
+    description: "The name of the process to run"
+    required: true
+  process-pyfile:
+    description: "The name of the Python process to run. Do not add '.py' extension"
+    required: true
+  chunk-id:
+    description: "The ID of the Chunk file to process"
+    required: true
+  pattern:
+    description: "The file pattern to upload"
+    required: true
+  message:
+    description: "The custom message to display"
+    required: true
+  s3-bucket:
+    description: "The target S3 bucket for files uploading"
+    required: true
+  full-run:
+    description: "The flag to run in '--full-run' mode"
+    required: false
+    default: false
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+  max-workers:
+    description: "The no of maximum workers"
+    required: true
+    default: 80
+  max-retries:
+    description: "The no of maximum retries"
+    required: true
+    default: 8
+
+outputs:
+  output-dir:
+    description: "Temporary directory containing parquet files"
+    value: ${{ steps.fx.outputs.output_dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create Temp Directory
+      id: prep_chunk
+      run: |
+        CHUNK_DIR="$(mktemp -d $RUNNER_TEMP/chunks-fx.XXXXXX)"
+        echo "chunk_dir=$CHUNK_DIR" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: chunks-fx-${{ inputs.run-id }}
+        path: ${{ steps.prep_chunk.outputs.chunk_dir }}
+
+    - name: Run FX
+      id: fx
+      run: |
+        CHUNK_FILE="${{ steps.prep_chunk.outputs.chunk_dir }}/chunk_${{ inputs.chunk-id }}.json"
+        
+        echo "🚀 Running for chunk ID: ${{ inputs.chunk-id }}"
+        OUTPUT_DIR=$(python equicast_ingestion/scripts/fx/${{ inputs.process-pyfile }}.py \
+          --file "$CHUNK_FILE" \
+          --max-workers ${{ inputs.max-workers }} \
+          --max-retries ${{ inputs.max-retries }} \
+          ${{ inputs.full-run == 'true' && '--full-run' || '' }} | tail -n 1)
+        
+        echo "output_dir=$OUTPUT_DIR" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Upload Parquet Files
+      run: |
+        python equicast_ingestion/scripts/uploader.py \
+          --directory-path "${{ steps.fx.outputs.output_dir }}" \
+          --file-pattern "${{ inputs.pattern }}" \
+          --custom-message "${{ inputs.message }}" \
+          --s3-bucket "${{ inputs.s3-bucket }}" \
+          --mode "fx"
+      shell: bash
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: fx-downloads-${{ inputs.process-name }}-${{ inputs.chunk-id }}-${{ inputs.run-id }}
+        path: ${{ steps.fx.outputs.output_dir }}
+
+    - name: Upload "error.log"
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: error-fx-${{ inputs.process-name }}-${{ inputs.chunk-id }}-log
+        path: ${{ steps.fx.outputs.output_dir }}/error_extract_${{ inputs.process-pyfile }}.log

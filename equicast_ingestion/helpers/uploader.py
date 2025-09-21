@@ -60,7 +60,7 @@ class Uploader:
         elif len(files) == len(status.get("uploaded", [])):
             print(f"✅ Successfully uploaded {len(files)} files")
 
-        self.write_summary(status.get("uploaded", []), status.get("failed", []))
+        # self.write_summary(status.get("uploaded", []), status.get("failed", []))
         self.write_outputs(len(status.get("uploaded", [])), len(status.get("failed", [])))
 
     def write_summary(self, uploaded: list, failed: list):
