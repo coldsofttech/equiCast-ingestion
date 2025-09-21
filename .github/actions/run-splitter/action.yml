@@ -26,7 +26,7 @@ runs:
     - name: Create Temp Directory
       id: prep_download
       run: |
-        DOWNLOAD_DIR="$(mktemp -d $RUNNER_TEMP/downloads_XXXXXX)"
+        DOWNLOAD_DIR="$(mktemp -d '$RUNNER_TEMP/downloads.XXXXXX')"
         echo "download_dir=$DOWNLOAD_DIR" >> $GITHUB_OUTPUT
       shell: bash
 
@@ -47,11 +47,12 @@ runs:
           --file $DOWNLOAD_FILE_NAME \
           --chunk-size $CHUNK_SIZE \
           --mode ${{ inputs.mode }})
-        echo "chunk_dir=$CHUNK_DIR" >> $GITHUB_OUTPUT
         
+        echo "chunk_dir=$CHUNK_DIR" >> $GITHUB_OUTPUT
         CHUNK_FILE_NAME="$CHUNK_DIR/${{ inputs.mode }}_chunks.json"
+        
         echo "🔁 Reading chunk IDs from file"
-        MATRIX=$(jq -c . < $CHUNK_FILE_NAME)
+        MATRIX=$(jq -c . < "$CHUNK_FILE_NAME")
         echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
       shell: bash
 
