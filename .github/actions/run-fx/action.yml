@@ -66,7 +66,7 @@ runs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: fx-downloads-${{ inputs.chunk-id }}-${{ inputs.run-id }}
+        name: fx-downloads-${{ inputs.process-name }}-${{ inputs.chunk-id }}-${{ inputs.run-id }}
         path: ${{ steps.fx.outputs.output_dir }}
 
     - name: Upload "error.log"
