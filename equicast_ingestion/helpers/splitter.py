@@ -51,7 +51,7 @@ class Splitter:
                 print(f"✅ Saved chunk {idx + 1} with {len(chunk)} tickers to {output_filepath}.")
 
             chunk_ids = list(range(1, len(chunks) + 1))
-            with open("stock_chunks.json", "w", encoding="utf-8") as f:
+            with open(f"{self.mode}_chunks.json", "w", encoding="utf-8") as f:
                 json.dump(chunk_ids, f)
 
             print("✅ Processed all tickers.")
