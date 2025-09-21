@@ -28,3 +28,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Python
         uses: ./.github/actions/setup-python
+      - name: Configure AWS Credentials
+        uses: ./.github/actions/configure-aws

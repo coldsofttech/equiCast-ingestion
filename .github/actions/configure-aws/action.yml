@@ -1,0 +1,21 @@
+name: "Configure AWS"
+description: "Configure AWS Credentials for CLI/SDK access"
+inputs:
+  aws-region:
+    description: "AWS Region"
+    required: true
+    default: "eu-west-1"
+  role-session-name:
+    description: "Role Name for the Session"
+    required: false
+    default: "GitHubActionSession"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+        aws-region: ${{ inputs.aws-region }}
+        role-session-name: ${{ inputs.role-session-name }}
