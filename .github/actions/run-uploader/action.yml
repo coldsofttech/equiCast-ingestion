@@ -50,8 +50,8 @@ runs:
         
         TEMP_DIR="$(mktemp -d)"
         gh run download ${{ inputs.run-id }} -p "$PATTERN" -D "$TEMP_DIR"
-        find "$TEMP_DIR" -mindepth 2 -type f -exec mv -t "$DOWNLOAD_DIR" {} +
-        echo "✅ All artifacts downloaded and flattened to $DOWNLOAD_DIR"
+        cp -r "$TEMP_DIR"/* "$DOWNLOAD_DIR"
+        echo "✅ All artifacts downloaded $DOWNLOAD_DIR"
       shell: bash
 
     - name: Estimate S3 Storage Cost

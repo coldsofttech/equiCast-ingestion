@@ -8,6 +8,9 @@ inputs:
   gh-repository:
     description: "GitHub Repository details"
     required: true
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
 
 runs:
   using: "composite"
@@ -22,7 +25,7 @@ runs:
         GH_TOKEN: ${{ inputs.gh-token }}
       run: |
         echo "🧹 Deleting all artifacts in the repository..."
-        ARTIFACT_IDS=$(gh api repos/${{ inputs.gh-repository }}/actions/artifacts \
+        ARTIFACT_IDS=$(gh api repos/${{ inputs.gh-repository }}/actions/runs/${{ inputs.run-id }}/artifacts \
               | jq -r '.artifacts[].id')
         
         if [ -z "$ARTIFACT_IDS" ]; then
