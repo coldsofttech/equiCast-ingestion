@@ -4,13 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "equicast_ingestion"
-version = "0.1.7"
+version = "0.1.8"
 description = "Data Ingestion equiCast"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "coldsofttech", email = "coldsoft.mail@gmail.com" }]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "botocore~=1.40.35",
+    "boto3~=1.40.35",
+    "tqdm~=4.67.1"
+]
 
 classifiers = [
     "Programming Language :: Python :: 3.13",
