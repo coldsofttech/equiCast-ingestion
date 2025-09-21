@@ -74,4 +74,4 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: error-fx-${{ inputs.process-name }}-${{ inputs.chunk-id }}-log
-        path: ${{ steps.fx.outputs.output_dir }}/error_extract_${{ inputs-process.pyfile }}.log
+        path: ${{ steps.fx.outputs.output_dir }}/error_extract_${{ inputs.process-pyfile }}.log
