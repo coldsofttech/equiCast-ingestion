@@ -189,7 +189,7 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
-      - name: Run FX Prices
+      - name: Run & Upload FX Prices
         uses: ./.github/actions/run-fx
         with:
           process-name: Prices
@@ -197,6 +197,9 @@ jobs:
           chunk-id: ${{ matrix.chunk_id }}
           full-run: ${{ github.event.inputs.full_run }}
           run-id: ${{ github.run_id }}
+          pattern: "*.parquet"
+          message: "Upload FX Prices Parquet Files"
+          s3-bucket: "equicast-ingestion"
 
   process-fx-fundamentals:
     name: Process FX Fundamentals (Daily Job)
@@ -226,13 +229,16 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
-      - name: Run FX Fundamentals
+      - name: Run & Upload FX Fundamentals
         uses: ./.github/actions/run-fx
         with:
           process-name: Fundamentals
           process-pyfile: fx_fundamentals
           chunk-id: ${{ matrix.chunk_id }}
           run-id: ${{ github.run_id }}
+          pattern: "*.parquet"
+          message: "Upload FX Fundamentals Parquet Files"
+          s3-bucket: "equicast-ingestion"
 
   process-fx-calculations:
     name: Process FX Calculations (Weekly Job)
@@ -262,13 +268,16 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
-      - name: Run FX Calculations
+      - name: Run & Upload FX Calculations
         uses: ./.github/actions/run-fx
         with:
           process-name: Calculations
           process-pyfile: fx_calculations
           chunk-id: ${{ matrix.chunk_id }}
           run-id: ${{ github.run_id }}
+          pattern: "*.parquet"
+          message: "Upload FX Calculations Parquet Files"
+          s3-bucket: "equicast-ingestion"
 
   process-fx-forecast:
     name: Process FX Forecast (Monthly Job)
@@ -298,13 +307,16 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
-      - name: Run FX Forecast
+      - name: Run & Upload FX Forecast
         uses: ./.github/actions/run-fx
         with:
           process-name: Forecast
           process-pyfile: fx_forecast
           chunk-id: ${{ matrix.chunk_id }}
           run-id: ${{ github.run_id }}
+          pattern: "*.parquet"
+          message: "Upload FX Forecast Parquet Files"
+          s3-bucket: "equicast-ingestion"
 
   process-fx-profile:
     name: Process FX Profile (Quarterly Job)
@@ -334,16 +346,19 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
-      - name: Run FX Profile
+      - name: Run & Upload FX Profile
         uses: ./.github/actions/run-fx
         with:
           process-name: Profile
           process-pyfile: fx_profile
           chunk-id: ${{ matrix.chunk_id }}
           run-id: ${{ github.run_id }}
+          pattern: "*.parquet"
+          message: "Upload FX Profile Parquet Files"
+          s3-bucket: "equicast-ingestion"
 
-  upload-fx:
-    name: Upload FX
+  calculate-cost:
+    name: Calculate S3 Cost
     runs-on: ubuntu-latest
     needs:
       - process-fx-prices
@@ -354,7 +369,6 @@ jobs:
     if: always()
     permissions:
       contents: read
-      id-token: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -369,25 +383,17 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
-      - name: Configure AWS Credentials
-        uses: ./.github/actions/configure-aws
+      - name: Calculate Cost
+        uses: ./.github/actions/calculate-cost
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-      - name: Run Uploader
-        uses: ./.github/actions/run-uploader
-        with:
-          mode: fx
           pattern: "*.parquet"
-          message: "Upload FX Parquet Files"
-          s3-bucket: "equicast-ingestion"
           run-id: ${{ github.run_id }}
           gh-token: ${{ secrets.GITHUB_TOKEN }}
 
   clean-up:
     name: Cleanup
     runs-on: ubuntu-latest
-    needs:
-      - upload-fx
+    needs: calculate-cost
     if: always()
     permissions:
       contents: read

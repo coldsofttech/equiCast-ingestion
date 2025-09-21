@@ -11,6 +11,15 @@ inputs:
   chunk-id:
     description: "The ID of the Chunk file to process"
     required: true
+  pattern:
+    description: "The file pattern to upload"
+    required: true
+  message:
+    description: "The custom message to display"
+    required: true
+  s3-bucket:
+    description: "The target S3 bucket for files uploading"
+    required: true
   full-run:
     description: "The flag to run in '--full-run' mode"
     required: false
@@ -61,6 +70,16 @@ runs:
           ${{ inputs.full-run == 'true' && '--full-run' || '' }} | tail -n 1)
         
         echo "output_dir=$OUTPUT_DIR" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Upload Parquet Files
+      run: |
+        python equicast_ingestion/scripts/uploader.py \
+          --directory-path "${{ steps.fx.outputs.output_dir }}" \
+          --file-pattern "${{ inputs.pattern }}" \
+          --custom-message "${{ inputs.message }}" \
+          --s3-bucket "${{ inputs.s3-bucket }}" \
+          --mode "fx"
       shell: bash
 
     - name: Upload Artifact

@@ -2,17 +2,8 @@ name: "Run Uploader"
 description: "Run Uploader to upload the generated files"
 
 inputs:
-  mode:
-    description: "The 'mode' to run"
-    required: true
   pattern:
     description: "The file pattern to upload"
-    required: true
-  message:
-    description: "The custom message to display"
-    required: true
-  s3-bucket:
-    description: "The target S3 bucket for files uploading"
     required: true
   run-id:
     description: "GitHub Run ID (used for caching)"
@@ -32,7 +23,7 @@ runs:
     - name: Create Temp Directory
       id: prep_download
       run: |
-        DOWNLOAD_DIR="$(mktemp -d $RUNNER_TEMP/${{ inputs.mode }}-downloads.XXXXXX)"
+        DOWNLOAD_DIR="$(mktemp -d $RUNNER_TEMP/downloads.XXXXXX)"
         echo "download_dir=$DOWNLOAD_DIR" >> $GITHUB_OUTPUT
       shell: bash
 
@@ -46,7 +37,7 @@ runs:
         GH_TOKEN: ${{ inputs.gh-token }}
       run: |
         DOWNLOAD_DIR="${{ steps.prep_download.outputs.download_dir }}"
-        PATTERN="${{ inputs.mode }}-downloads-*"
+        PATTERN="*-downloads-*"
         
         TEMP_DIR="$(mktemp -d)"
         gh run download ${{ inputs.run-id }} -p "$PATTERN" -D "$TEMP_DIR"
@@ -59,14 +50,4 @@ runs:
         python equicast_ingestion/scripts/calculate_s3_cost.py \
           --directory-path "${{ steps.prep_download.outputs.download_dir }}" \
           --file-pattern "${{ inputs.pattern }}"
-      shell: bash
-
-    - name: Upload Parquet Files
-      run: |
-        python equicast_ingestion/scripts/uploader.py \
-          --directory-path "${{ steps.prep_download.outputs.download_dir }}" \
-          --file-pattern "${{ inputs.pattern }}" \
-          --custom-message "${{ inputs.message }}" \
-          --s3-bucket "${{ inputs.s3-bucket }}" \
-          --mode "${{ inputs.mode }}"
       shell: bash
