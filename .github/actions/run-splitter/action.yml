@@ -44,3 +44,8 @@ runs:
       with:
         path: ${{ inputs.mode }}_chunks
         key: ${{ inputs.mode }}_chunks-${{ inputs.run-id }}
+
+outputs:
+  matrix:
+    description: "Matrix of Chunk IDs"
+    value: ${{ steps.gen_matrix.outputs.matrix }}
