@@ -32,7 +32,7 @@ runs:
       run: |
         echo "🚀 Running for chunk ID: ${{ inputs.chunk-id }}"
         python equicast_ingestion/scripts/fx/${{ inputs.process-pyfile }}.py \
-          --file "fx_chunks/chunk_${{ inputs.chunk-id }}.json"
+          --file "fx_chunks/chunk_${{ inputs.chunk-id }}.json" \
           ${{ inputs.full-run == 'true' && '--full-run' || '' }}
       shell: bash
 
