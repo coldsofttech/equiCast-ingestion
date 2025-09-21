@@ -162,7 +162,7 @@ jobs:
           run-id: ${{ github.run_id }}
 
   process-fx-prices:
-    name: Process FX Prices (Daily Job)
+    name: Process & Upload FX Prices (Daily Job)
     runs-on: ubuntu-latest
     needs: split-fx
     permissions:
@@ -189,6 +189,10 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
+      - name: Configure AWS Credentials
+        uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       - name: Run & Upload FX Prices
         uses: ./.github/actions/run-fx
         with:
@@ -202,7 +206,7 @@ jobs:
           s3-bucket: "equicast-ingestion"
 
   process-fx-fundamentals:
-    name: Process FX Fundamentals (Daily Job)
+    name: Process & Upload FX Fundamentals (Daily Job)
     runs-on: ubuntu-latest
     needs: split-fx
     permissions:
@@ -229,6 +233,10 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
+      - name: Configure AWS Credentials
+        uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       - name: Run & Upload FX Fundamentals
         uses: ./.github/actions/run-fx
         with:
@@ -241,7 +249,7 @@ jobs:
           s3-bucket: "equicast-ingestion"
 
   process-fx-calculations:
-    name: Process FX Calculations (Weekly Job)
+    name: Process & Upload FX Calculations (Weekly Job)
     runs-on: ubuntu-latest
     needs: split-fx
     permissions:
@@ -268,6 +276,10 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
+      - name: Configure AWS Credentials
+        uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       - name: Run & Upload FX Calculations
         uses: ./.github/actions/run-fx
         with:
@@ -280,7 +292,7 @@ jobs:
           s3-bucket: "equicast-ingestion"
 
   process-fx-forecast:
-    name: Process FX Forecast (Monthly Job)
+    name: Process & Upload FX Forecast (Monthly Job)
     runs-on: ubuntu-latest
     needs: split-fx
     permissions:
@@ -307,6 +319,10 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
+      - name: Configure AWS Credentials
+        uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       - name: Run & Upload FX Forecast
         uses: ./.github/actions/run-fx
         with:
@@ -319,7 +335,7 @@ jobs:
           s3-bucket: "equicast-ingestion"
 
   process-fx-profile:
-    name: Process FX Profile (Quarterly Job)
+    name: Process & Upload FX Profile (Quarterly Job)
     runs-on: ubuntu-latest
     needs: split-fx
     permissions:
@@ -346,6 +362,10 @@ jobs:
         uses: ./.github/actions/install-package
         with:
           run-id: ${{ github.run_id }}
+      - name: Configure AWS Credentials
+        uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       - name: Run & Upload FX Profile
         uses: ./.github/actions/run-fx
         with:
