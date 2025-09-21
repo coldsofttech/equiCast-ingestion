@@ -28,5 +28,5 @@ runs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: downloads-${{ inputs.run-id }}
+        name: downloads-${{ inputs.mode }}-${{ inputs.run-id }}
         path: ${{ steps.downloader.outputs.download_dir }}

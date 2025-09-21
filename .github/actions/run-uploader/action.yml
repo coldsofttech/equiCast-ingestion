@@ -41,15 +41,9 @@ runs:
     - name: Download All Artifacts
       run: |
         DOWNLOAD_DIR="${{ steps.prep_download.outputs.download_dir }}"
-        ARTIFACTS=$(gh run list-artifacts --run-id ${{ inputs.run-id }} \
-          --json name -q '.[].name' | grep '^${{ inputs.mode }}-downloads-')
+        PATTERN="${{ inputs.mode }}-downloads-*"
         
-        for ARTIFACT_NAME in $ARTIFACTS; do
-          echo "🔁 Downloading $ARTIFACT_NAME..."
-          gh run download-artifact --name "$ARTIFACT_NAME" --dir "$DOWNLOAD_DIR"
-        done
-        
-        echo "✅ All available artifacts downloaded to $DOWNLOAD_DIR"
+        gh run download ${{ inputs.run-id }} -p "$PATTERN" -D "$DOWNLOAD_DIR"
       shell: bash
 
     - name: Estimate S3 Storage Cost
