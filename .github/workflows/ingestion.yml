@@ -417,6 +417,7 @@ jobs:
     if: always()
     permissions:
       contents: read
+      actions: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
