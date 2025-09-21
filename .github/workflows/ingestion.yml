@@ -60,3 +60,23 @@ jobs:
         uses: ./.github/actions/build-package
         with:
           run-id: ${{ github.run_id }}
+
+  test:
+    if: github.event_name == 'workflow_dispatch'
+    name: Execute Test Cases
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cache-item: [ dist, wheels ]
+      fail-fast: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: ./.github/actions/setup-python
+      - name: Restore Cache
+        uses: ./.github/actions/restore-cache
+        with:
+          path: ${{ matrix.cache-item }}
+          run-id: ${{ github.run_id }}
