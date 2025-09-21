@@ -67,7 +67,7 @@ jobs:
           run-id: ${{ github.run_id }}
 
   test:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_test != 'true'
+    if: github.event_name == 'workflow_dispatch' && !github.event.inputs.skip_test
     name: Execute Test Cases
     runs-on: ubuntu-latest
     needs: prepare-package
