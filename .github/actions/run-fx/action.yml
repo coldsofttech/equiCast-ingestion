@@ -1,0 +1,50 @@
+name: "Run FX"
+description: "Run FX Processes"
+
+inputs:
+  process-name:
+    description: "The name of the process to run"
+    required: true
+  process-pyfile:
+    description: "The name of the Python process to run. Do not add '.py' extension"
+    required: true
+  chunk-id:
+    description: "The ID of the Chunk file to process"
+    required: true
+  full-run:
+    description: "The flag to run in '--full-run' mode"
+    required: false
+    default: false
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore "fx_chunks"
+      uses: actions/cache@v4
+      with:
+        path: fx_chunks
+        key: fx_chunks-${{ inputs.run-id }}
+
+    - name: Run FX
+      run: |
+        echo "🚀 Running for chunk ID: ${{ inputs.chunk-id }}"
+        python equicast_ingestion/scripts/fx/${{ inputs.process-pyfile }}.py \
+          --file "fx_chunks/chunk_${{ inputs.chunk-id }}.json"
+          ${{ inputs.full-run == 'true' && '--full-run' || '' }}
+      shell: bash
+
+    - name: Cache "fx_downloads"
+      uses: actions/cache@v4
+      with:
+        path: fx_downloads
+        key: fx_downloads-${{ inputs.run-id }}
+
+    - name: Upload "error.log"
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: error-fx-${{ inputs.process-name }}-log
+        path: fx_downloads/error_extract_${{ inputs.process-pyfile }}.log
