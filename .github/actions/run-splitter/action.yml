@@ -46,7 +46,7 @@ runs:
         CHUNK_DIR=$(python equicast_ingestion/scripts/splitter.py \
           --file $DOWNLOAD_FILE_NAME \
           --chunk-size $CHUNK_SIZE \
-          --mode ${{ inputs.mode }})
+          --mode ${{ inputs.mode }} | tail -n 1)
         
         echo "chunk_dir=$CHUNK_DIR" >> $GITHUB_OUTPUT
         CHUNK_FILE_NAME="$CHUNK_DIR/${{ inputs.mode }}_chunks.json"
