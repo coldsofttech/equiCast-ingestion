@@ -1,0 +1,51 @@
+name: "Build CodeArtifact"
+description: "Build package from AWS CodeArtifact"
+
+inputs:
+  package-name:
+    description: "The name of the package"
+    required: true
+  domain:
+    description: "The name of the AWS CodeArtifact Domain"
+    required: true
+  owner:
+    description: "The owner of the AWS CodeArtifact Domain"
+    required: true
+  endpoint:
+    description: "The Endpoint of the AWS CodeArtifact Repository"
+    required: true
+  ssm-parameter:
+    description: "The path of the AWS SSM Parameter to get latest version of the package specified"
+    required: true
+  aws-region:
+    description: "The AWS Region where CodeArtifact Domain exists"
+    required: true
+    default: "eu-west-1"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Login to AWS CodeArtifact
+      run: |
+        export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
+          --domain "${{ inputs.domain }}" \
+          --domain-owner "${{ inputs.owner }}" \
+          --query authorizationToken --output text --region ${{ inputs.aws-region }})
+        echo "PIP_INDEX_URL=https://aws:${CODEARTIFACT_AUTH_TOKEN}@${{ inputs.endpoint }}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Get Latest Version
+      run: |
+        VERSION=$(aws ssm get-parameter \
+          --name "${{ inputs.ssm-parameter }}" \
+          --query "Parameter.Value" --output text --region ${{ inputs.aws-region }})
+        echo "PKG_DEP_VERSION=$VERSION" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Build Dependency Wheels
+      run: |
+        PACKAGE=${{ inputs.package-name }}
+        VERSION="${PKG_DEP_VERSION#v}"
+        pip wheel "$PACKAGE==$VERSION" \
+          --wheel-dir wheels --index-url $PIP_INDEX_URL --extra-index-url https://pypi.org/simple
+      shell: bash

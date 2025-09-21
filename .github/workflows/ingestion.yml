@@ -28,11 +28,27 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Python
         uses: ./.github/actions/setup-python
-      - name: Configure AWS Credentials
-        uses: ./.github/actions/configure-aws
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       - name: Install Dependencies
         uses: ./.github/actions/install-dependencies
         with:
           run-id: ${{ github.run_id }}
+      - name: Configure AWS Credentials
+        uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      - name: Build AWS Utils
+        uses: ./.github/actions/build-codeartifact
+        with:
+          package-name: "equicast-awsutils"
+          domain: ${{ secrets.CODEARTIFACT_DOMAIN }}
+          owner: ${{ secrets.CODEARTIFACT_OWNER }}
+          endpoint: ${{ secrets.AWSUTILS_CODEARTIFACT_ENDPOINT }}
+          ssm-parameter: ${{ secrets.AWSUTILS_VERSION_SSM_PARAMETER }}
+      - name: Build Python Utils
+        uses: ./.github/actions/build-codeartifact
+        with:
+          package-name: "equicast-pyutils"
+          domain: ${{ secrets.CODEARTIFACT_DOMAIN }}
+          owner: ${{ secrets.CODEARTIFACT_OWNER }}
+          endpoint: ${{ secrets.PYUTILS_CODEARTIFACT_ENDPOINT }}
+          ssm-parameter: ${{ secrets.PYUTILS_VERSION_SSM_PARAMETER }}
