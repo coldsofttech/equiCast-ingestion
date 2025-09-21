@@ -396,15 +396,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Python
         uses: ./.github/actions/setup-python
-      - name: Run Uploader
-        uses: ./.github/actions/run-uploader
-        with:
-          mode: fx
-          pattern: "*.parquet"
-          message: "Upload FX Parquet Files"
-          s3-bucket: "equicast-ingestion"
-          run-id: ${{ github.run_id }}
-          gh-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Cleanup All Artifacts
         uses: ./.github/actions/cleanup
         with:

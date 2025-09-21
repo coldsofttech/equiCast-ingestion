@@ -48,7 +48,10 @@ runs:
         DOWNLOAD_DIR="${{ steps.prep_download.outputs.download_dir }}"
         PATTERN="${{ inputs.mode }}-downloads-*"
         
-        gh run download ${{ inputs.run-id }} -p "$PATTERN" -D "$DOWNLOAD_DIR"
+        TEMP_DIR="$(mktemp -d)"
+        gh run download ${{ inputs.run-id }} -p "$PATTERN" -D "$TEMP_DIR"
+        find "$TEMP_DIR" -mindepth 2 -type f -exec mv -t "$DOWNLOAD_DIR" {} +
+        echo "✅ All artifacts downloaded and flattened to $DOWNLOAD_DIR"
       shell: bash
 
     - name: Estimate S3 Storage Cost
