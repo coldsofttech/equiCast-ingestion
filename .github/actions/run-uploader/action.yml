@@ -17,6 +17,9 @@ inputs:
   run-id:
     description: "GitHub Run ID (used for caching)"
     required: true
+  gh-token:
+    description: "GitHub Token to download Artifacts via CLI"
+    required: true
 
 outputs:
   download-dir:
@@ -39,6 +42,8 @@ runs:
       shell: bash
 
     - name: Download All Artifacts
+      env:
+        GH_TOKEN: ${{ inputs.gh-token }}
       run: |
         DOWNLOAD_DIR="${{ steps.prep_download.outputs.download_dir }}"
         PATTERN="${{ inputs.mode }}-downloads-*"

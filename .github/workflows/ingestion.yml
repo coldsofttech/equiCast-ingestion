@@ -381,3 +381,32 @@ jobs:
           message: "Upload FX Parquet Files"
           s3-bucket: "equicast-ingestion"
           run-id: ${{ github.run_id }}
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
+
+  clean-up:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs:
+      - upload-fx
+    if: always()
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: ./.github/actions/setup-python
+      - name: Run Uploader
+        uses: ./.github/actions/run-uploader
+        with:
+          mode: fx
+          pattern: "*.parquet"
+          message: "Upload FX Parquet Files"
+          s3-bucket: "equicast-ingestion"
+          run-id: ${{ github.run_id }}
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cleanup All Artifacts
+        uses: ./.github/actions/cleanup
+        with:
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
+          gh-repository: ${{ github.repository }}
