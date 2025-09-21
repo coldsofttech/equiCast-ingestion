@@ -1,0 +1,23 @@
+name: "Build Dependencies"
+description: "Build Python dependencies from wheels"
+
+inputs:
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build Dependency Wheels
+      run: |
+        export PIP_INDEX_URL=https://pypi.org/simple
+        pip wheel -r requirements.txt --wheel-dir wheels
+        pip wheel -r requirements-dev.txt --wheel-dir wheels
+      shell: bash
+
+    - name: Cache Dependency Wheels
+      uses: actions/cache@v4
+      with:
+        path: wheels
+        key: wheels-${{ inputs.run-id }}

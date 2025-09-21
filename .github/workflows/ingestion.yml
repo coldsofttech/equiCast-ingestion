@@ -52,3 +52,11 @@ jobs:
           owner: ${{ secrets.CODEARTIFACT_OWNER }}
           endpoint: ${{ secrets.PYUTILS_CODEARTIFACT_ENDPOINT }}
           ssm-parameter: ${{ secrets.PYUTILS_VERSION_SSM_PARAMETER }}
+      - name: Build Dependencies
+        uses: ./.github/actions/build-dependencies
+        with:
+          run-id: ${{ github.run_id }}
+      - name: Build Package
+        uses: ./.github/actions/build-package
+        with:
+          run-id: ${{ github.run_id }}

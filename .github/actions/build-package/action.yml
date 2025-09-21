@@ -1,0 +1,22 @@
+name: "Build Package"
+description: "Build Package"
+
+inputs:
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build Package
+      run: |
+        export PIP_INDEX_URL=https://pypi.org/simple
+        python -m build
+      shell: bash
+
+    - name: Cache Built Package
+      uses: actions/cache@v4
+      with:
+        path: dist
+        key: built-package-${{ inputs.run-id }}
