@@ -65,18 +65,20 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     name: Execute Test Cases
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        cache-item: [ dist, wheels ]
-      fail-fast: true
+    needs: prepare-package
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
         uses: ./.github/actions/setup-python
-      - name: Restore Cache
+      - name: Restore Cache "dist"
         uses: ./.github/actions/restore-cache
         with:
-          path: ${{ matrix.cache-item }}
+          path: dist
+          run-id: ${{ github.run_id }}
+      - name: Restore Cache "wheels"
+        uses: ./.github/actions/restore-cache
+        with:
+          path: wheels
           run-id: ${{ github.run_id }}
