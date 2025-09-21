@@ -93,18 +93,14 @@ jobs:
           name: test-report
           path: pytest_results.html
 
-  download:
+  download-fx:
     if: needs.prepare-package.result == 'success' && needs.test.result != 'failure'
-    name: Download
+    name: Download FX
     runs-on: ubuntu-latest
     needs: [ prepare-package, test ]
     permissions:
       contents: read
       id-token: write
-    strategy:
-      fail-fast: true
-      matrix:
-        mode: [ fx ]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
@@ -125,5 +121,34 @@ jobs:
       - name: Run Downloader
         uses: ./.github/actions/run-downloader
         with:
-          mode: ${{ matrix.mode }}
+          mode: fx
+          run-id: ${{ github.run_id }}
+
+  split-fx:
+    name: Split FX
+    runs-on: ubuntu-latest
+    needs: download-fx
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.split.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: ./.github/actions/setup-python
+      - name: Install Dependencies
+        uses: ./.github/actions/install-dependencies
+        with:
+          from-wheels: true
+          run-id: ${{ github.run_id }}
+      - name: Install package
+        uses: ./.github/actions/install-package
+        with:
+          run-id: ${{ github.run_id }}
+      - name: Run Splitter
+        id: split
+        uses: ./.github/actions/run-splitter
+        with:
+          mode: fx
+          chunk-size: 20
           run-id: ${{ github.run_id }}

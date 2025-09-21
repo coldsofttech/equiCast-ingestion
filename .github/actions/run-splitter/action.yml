@@ -1,0 +1,46 @@
+name: "Run Splitter"
+description: "Run Downloader and cache the results"
+
+inputs:
+  mode:
+    description: "The 'mode' to run"
+    required: true
+  chunk-size:
+    description: "The size of the chunk"
+    required: true
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore "downloads"
+      uses: actions/cache@v4
+      with:
+        path: downloads
+        key: downloads-${{ inputs.run-id }}
+
+    - name: Run Splitter
+      id: gen_matrix
+      run: |
+        CHUNK_SIZE=${{ inputs.chunk-size }}
+        DOWNLOAD_FILE_NAME="downloads/${{ inputs.mode }}.json"
+        CHUNK_FILE_NAME="${{ inputs.mode }}_chunks.json"
+        
+        echo "🔢 Using CHUNK_SIZE=$CHUNK_SIZE"
+        python equicast_ingestion/scripts/splitter.py \
+          --file $DOWNLOAD_FILE_NAME \
+          --chunk-size $CHUNK_SIZE \
+          --mode ${{ inputs.mode }}
+        
+        echo "🔁 Reading chunk IDs from file"
+        MATRIX=$(jq -c . < $CHUNK_FILE_NAME)
+        echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Cache Chunks
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.mode }}_chunks
+        key: ${{ inputs.mode }}_chunks-${{ inputs.run-id }}
