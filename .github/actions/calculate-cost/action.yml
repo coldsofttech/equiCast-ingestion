@@ -36,13 +36,22 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.gh-token }}
       run: |
+        set +e
         DOWNLOAD_DIR="${{ steps.prep_download.outputs.download_dir }}"
         PATTERN="*-downloads-*"
         
         TEMP_DIR="$(mktemp -d)"
+        echo "🔎 Trying to download artifacts with pattern '$PATTERN' for run ${{ inputs.run-id }}..."
         gh run download ${{ inputs.run-id }} -p "$PATTERN" -D "$TEMP_DIR"
-        cp -r "$TEMP_DIR"/* "$DOWNLOAD_DIR"
-        echo "✅ All artifacts downloaded $DOWNLOAD_DIR"
+        STATUS=$?
+        set -e
+        
+        if [ $STATUS -ne 0 ]; then
+          echo "⚠️ No artifacts found matching pattern '$PATTERN'. Skipping download."
+        else
+          cp -r "$TEMP_DIR"/* "$DOWNLOAD_DIR" || true
+          echo "✅ All artifacts downloaded $DOWNLOAD_DIR"
+        fi
       shell: bash
 
     - name: Estimate S3 Storage Cost

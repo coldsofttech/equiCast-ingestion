@@ -167,6 +167,7 @@ jobs:
     needs: split-fx
     permissions:
       contents: read
+      id-token: write
     strategy:
       fail-fast: true
       max-parallel: 20
@@ -211,6 +212,7 @@ jobs:
     needs: split-fx
     permissions:
       contents: read
+      id-token: write
     strategy:
       fail-fast: true
       max-parallel: 20
@@ -254,6 +256,7 @@ jobs:
     needs: split-fx
     permissions:
       contents: read
+      id-token: write
     strategy:
       fail-fast: true
       max-parallel: 20
@@ -297,6 +300,7 @@ jobs:
     needs: split-fx
     permissions:
       contents: read
+      id-token: write
     strategy:
       fail-fast: true
       max-parallel: 20
@@ -340,6 +344,7 @@ jobs:
     needs: split-fx
     permissions:
       contents: read
+      id-token: write
     strategy:
       fail-fast: true
       max-parallel: 20
