@@ -77,8 +77,21 @@ jobs:
         with:
           path: dist
           run-id: ${{ github.run_id }}
-      - name: Restore Cache "wheels"
-        uses: ./.github/actions/restore-cache
+      - name: Install Dependencies
+        uses: ./.github/actions/install-dependencies
         with:
-          path: wheels
+          from-wheels: true
           run-id: ${{ github.run_id }}
+      - name: Install package
+        uses: ./.github/actions/install-package
+      - name: Run Test Cases
+        run: |
+          pytest tests -vv -rEPW -o pytest_collection_order=alphabetical \
+            --cache-clear --color=yes --html=pytest_results.html --self-contained-html
+        shell: bash
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: pytest_results.html

@@ -1,0 +1,10 @@
+name: "Install Package"
+description: "Install Ingestion Package"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Package
+      run: |
+        pip install dist/*.whl
+      shell: bash
