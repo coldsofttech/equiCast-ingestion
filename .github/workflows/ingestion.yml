@@ -99,10 +99,9 @@ jobs:
           path: pytest_results.html
 
   download-fx:
-    if: needs.prepare-package.result == 'success' && needs.test.result != 'failure'
     name: Download FX
     runs-on: ubuntu-latest
-    needs: [ prepare-package, test ]
+    needs: prepare-package
     permissions:
       contents: read
       id-token: write
