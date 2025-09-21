@@ -341,3 +341,43 @@ jobs:
           process-pyfile: fx_profile
           chunk-id: ${{ matrix.chunk_id }}
           run-id: ${{ github.run_id }}
+
+  upload-fx:
+    name: Upload FX
+    runs-on: ubuntu-latest
+    needs:
+      - process-fx-prices
+      - process-fx-fundamentals
+      - process-fx-calculations
+      - process-fx-forecast
+      - process-fx-profile
+    if: always()
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: ./.github/actions/setup-python
+      - name: Install Dependencies
+        uses: ./.github/actions/install-dependencies
+        with:
+          from-wheels: true
+          run-id: ${{ github.run_id }}
+      - name: Install Package
+        uses: ./.github/actions/install-package
+        with:
+          run-id: ${{ github.run_id }}
+      - name: Configure AWS Credentials
+        uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      - name: Run Uploader
+        uses: ./.github/actions/run-uploader
+        with:
+          mode: fx
+          path: fx_downloads
+          pattern: "*.parquet"
+          message: "Upload FX Parquet Files"
+          s3-bucket: "equicast-ingestion"

@@ -1,0 +1,44 @@
+name: "Run Uploader"
+description: "Run Uploader to upload the generated files"
+
+inputs:
+  mode:
+    description: "The 'mode' to run"
+    required: true
+  path:
+    description: "The path of the directory to upload"
+    required: true
+  pattern:
+    description: "The file pattern to upload"
+    required: true
+  message:
+    description: "The custom message to display"
+    required: true
+  s3-bucket:
+    description: "The target S3 bucket for files uploading"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore Downloads
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.path }}-${{ inputs.run-id }}
+
+    - name: Estimate S3 Storage Cost
+      run: |
+        python equicast_ingestion/scripts/calculate_s3_cost.py \
+          --directory-path "${{ inputs.path }}" \
+          --file-pattern "${{ inputs.pattern }}"
+      shell: bash
+
+    - name: Upload Parquet Files
+      run: |
+        python equicast_ingestion/scripts/uploader.py \
+          --directory-path "${{ inputs.path }}" \
+          --file-pattern "${{ inputs.pattern }}" \
+          --custom-message "${{ inputs.message }}" \
+          --s3-bucket "${{ inputs.s3-bucket }}" \
+          --mode "${{ inputs.mode }}"
+      shell: bash
