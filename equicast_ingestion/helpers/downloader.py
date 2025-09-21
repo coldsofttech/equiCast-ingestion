@@ -1,4 +1,5 @@
 import os
+import tempfile
 from dataclasses import dataclass, field
 from typing import Dict, List
 
@@ -7,7 +8,6 @@ from equicast_awsutils import S3
 
 @dataclass
 class Downloader:
-    download_dir: str = "downloads"
     region_name: str = "eu-west-1"
     buckets: Dict[str, str] = field(
         default_factory=lambda: {
@@ -27,9 +27,11 @@ class Downloader:
             }
         }
     )
+    temp_dir: str = field(init=False)
 
     def __post_init__(self):
-        os.makedirs(self.download_dir, exist_ok=True)
+        self.temp_dir = tempfile.mkdtemp(prefix="downloads_")
+        os.makedirs(self.temp_dir, exist_ok=True)
 
     def download(self, data_type: str):
         if data_type not in self.buckets:
@@ -44,8 +46,11 @@ class Downloader:
             files.append({'key': file_name, 'mandatory': False})
 
         s3_obj = S3(bucket_name=bucket_name, region_name=self.region_name)
-        status = s3_obj.download_files(local_dir=self.download_dir, files=files)
+        status = s3_obj.download_files(local_dir=self.temp_dir, files=files)
+
         if len(status.get("missing_mandatory", [])) > 0:
             print(f"⚠️ Some of the mandatory files are missing: {status.get('missing_mandatory')}")
         elif len(files) == len(status.get("downloaded", [])):
             print(f"✅ Successfully downloaded {len(files)} files")
+
+        return self.temp_dir

@@ -11,7 +11,8 @@ def main():
     args = parser.parse_args()
 
     splitter = Splitter(mode=args.mode, filepath=args.file, pref_chunk_size=args.chunk_size)
-    splitter.split()
+    temp_dir = splitter.split()
+    print(temp_dir)
 
 
 if __name__ == "__main__":

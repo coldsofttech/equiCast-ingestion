@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 from dataclasses import dataclass, field
 
 
@@ -9,11 +10,11 @@ class Splitter:
     filepath: str
     pref_chunk_size: int
     max_chunks: int = field(default=256, init=False)
-    output_dir: str = field(init=False)
+    temp_dir: str = field(init=False)
 
     def __post_init__(self):
-        self.output_dir = "stock_chunks" if self.mode == "stock" else "fx_chunks"
-        os.makedirs(self.output_dir, exist_ok=True)
+        self.temp_dir = tempfile.mkdtemp(prefix=f"chunks_{self.mode}_")
+        os.makedirs(self.temp_dir, exist_ok=True)
 
     def split(self):
         if self.mode not in ["stock", "fx"]:
@@ -44,14 +45,16 @@ class Splitter:
                 for i in range(0, len(unique_elements), chunk_size)
             ]
             for idx, chunk in enumerate(chunks):
-                output_filepath = os.path.join(self.output_dir, f"chunk_{idx + 1}.json")
+                output_filepath = os.path.join(self.temp_dir, f"chunk_{idx + 1}.json")
                 with open(output_filepath, "w", encoding="utf-8") as f:
                     json.dump(chunk, f, indent=4, sort_keys=True)
 
                 print(f"✅ Saved chunk {idx + 1} with {len(chunk)} tickers to {output_filepath}.")
 
             chunk_ids = list(range(1, len(chunks) + 1))
-            with open(f"{self.mode}_chunks.json", "w", encoding="utf-8") as f:
+            with open(os.path.join(self.temp_dir, f"{self.mode}_chunks.json"), "w", encoding="utf-8") as f:
                 json.dump(chunk_ids, f)
 
             print("✅ Processed all tickers.")
+
+        return self.temp_dir

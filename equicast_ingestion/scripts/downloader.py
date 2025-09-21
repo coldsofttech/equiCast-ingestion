@@ -9,8 +9,8 @@ def main():
     args = parser.parse_args()
 
     downloader = Downloader()
-    if args.mode == "fx":
-        downloader.download("fx")
+    temp_dir = downloader.download(args.mode)
+    print(temp_dir)
 
 
 if __name__ == "__main__":

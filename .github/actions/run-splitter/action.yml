@@ -12,40 +12,51 @@ inputs:
     description: "GitHub Run ID (used for caching)"
     required: true
 
+outputs:
+  matrix:
+    description: "Matrix of Chunk IDs"
+    value: ${{ steps.gen_matrix.outputs.matrix }}
+  chunk-dir:
+    description: "Temporary directory containing chunk files"
+    value: ${{ steps.gen_matrix.outputs.chunk_dir }}
+
 runs:
   using: "composite"
   steps:
-    - name: Restore "downloads"
-      uses: actions/cache@v4
+    - name: Create Temp Directory
+      id: prep_download
+      run: |
+        DOWNLOAD_DIR="$(mktemp -d $RUNNER_TEMP/downloads_XXXXXX)"
+        echo "download_dir=$DOWNLOAD_DIR" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
       with:
-        path: downloads
-        key: downloads-${{ inputs.run-id }}
+        name: downloads-${{ input.run-id }}
+        path: ${{ steps.prep_download.outputs.download_dir }}
 
     - name: Run Splitter
       id: gen_matrix
       run: |
         CHUNK_SIZE=${{ inputs.chunk-size }}
-        DOWNLOAD_FILE_NAME="downloads/${{ inputs.mode }}.json"
-        CHUNK_FILE_NAME="${{ inputs.mode }}_chunks.json"
+        DOWNLOAD_FILE_NAME="${{ steps.prep_download.outputs.download_dir }}/${{ inputs.mode }}.json"
         
         echo "🔢 Using CHUNK_SIZE=$CHUNK_SIZE"
-        python equicast_ingestion/scripts/splitter.py \
+        CHUNK_DIR=$(python equicast_ingestion/scripts/splitter.py \
           --file $DOWNLOAD_FILE_NAME \
           --chunk-size $CHUNK_SIZE \
-          --mode ${{ inputs.mode }}
+          --mode ${{ inputs.mode }})
+        echo "chunk_dir=$CHUNK_DIR" >> $GITHUB_OUTPUT
         
+        CHUNK_FILE_NAME="$CHUNK_DIR/${{ inputs.mode }}_chunks.json"
         echo "🔁 Reading chunk IDs from file"
         MATRIX=$(jq -c . < $CHUNK_FILE_NAME)
         echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
       shell: bash
 
-    - name: Cache Chunks
-      uses: actions/cache@v4
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
       with:
-        path: ${{ inputs.mode }}_chunks
-        key: ${{ inputs.mode }}_chunks-${{ inputs.run-id }}
-
-outputs:
-  matrix:
-    description: "Matrix of Chunk IDs"
-    value: ${{ steps.gen_matrix.outputs.matrix }}
+        name: chunks-${{ inputs.mode }}-${{ inputs.run-id }}
+        path: ${{ steps.gen_matrix.outputs.chunk_dir }}
