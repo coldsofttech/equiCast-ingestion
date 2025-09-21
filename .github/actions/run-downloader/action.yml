@@ -1,0 +1,25 @@
+name: "Run Downloader"
+description: "Run Downloader and cache the results"
+
+inputs:
+  mode:
+    description: "The 'mode' to run"
+    required: true
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run Downloader
+      run: |
+        python equicast_ingestion/scripts/downloader.py \
+          --mode ${{ inputs.mode }}
+      shell: bash
+
+    - name: Cache Downloads
+      uses: actions/cache@v4
+      with:
+        path: downloads
+        key: downloads-${{ inputs.run-id }}
