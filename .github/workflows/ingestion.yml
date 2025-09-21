@@ -26,4 +26,5 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-python
+      - name: Setup Python
+        uses: ./.github/actions/setup-python
