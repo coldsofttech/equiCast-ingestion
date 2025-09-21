@@ -1,5 +1,6 @@
 name: "Configure AWS"
 description: "Configure AWS Credentials for CLI/SDK access"
+
 inputs:
   role-to-assume:
     description: "ARN of the role to assume"

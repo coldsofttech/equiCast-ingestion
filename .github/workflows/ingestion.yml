@@ -32,3 +32,7 @@ jobs:
         uses: ./.github/actions/configure-aws
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      - name: Install Dependencies
+        uses: ./.github/actions/install-dependencies
+        with:
+          run-id: ${{ github.run_id }}

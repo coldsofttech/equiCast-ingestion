@@ -1,0 +1,42 @@
+name: "Install Dependencies"
+description: "Install Python dependencies, optionally from pre-built wheels."
+
+inputs:
+  from-wheels:
+    description: "Install from 'wheels' directory if true, else normal install"
+    required: false
+    default: false
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Clean Wheels Directory
+      if: ${{ inputs.from-wheels == 'false' }}
+      run: |
+        rm -rf wheels/*
+      shell: bash
+
+    - name: Install Dependencies (Normal)
+      if: ${{ inputs.from-wheels == 'false' }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+      shell: bash
+
+    - name: Restore Wheels Cache
+      if: ${{ inputs.from-wheels == 'true' }}
+      uses: actions/cache@v4
+      with:
+        path: wheels
+        key: wheels-${{ inputs.run-id }}
+
+    - name: Install Dependencies (Wheels)
+      if: ${{ inputs.from-wheels == 'true' }}
+      run: |
+        pip install wheels/* --no-index --find-links wheels
+        pip install -r requirements-dev.txt
+        pip install -r requirements.txt
+      shell: bash
