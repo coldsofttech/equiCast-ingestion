@@ -18,33 +18,60 @@ inputs:
   run-id:
     description: "GitHub Run ID (used for caching)"
     required: true
+  max-workers:
+    description: "The no of maximum workers"
+    required: true
+    default: 80
+  max-retries:
+    description: "The no of maximum retries"
+    required: true
+    default: 8
+
+outputs:
+  output-dir:
+    description: "Temporary directory containing parquet files"
+    value: ${{ steps.fx.outputs.output_dir }}
 
 runs:
   using: "composite"
   steps:
-    - name: Restore "fx_chunks"
-      uses: actions/cache@v4
-      with:
-        path: fx_chunks
-        key: fx_chunks-${{ inputs.run-id }}
-
-    - name: Run FX
+    - name: Create Temp Directory
+      id: prep_chunk
       run: |
-        echo "🚀 Running for chunk ID: ${{ inputs.chunk-id }}"
-        python equicast_ingestion/scripts/fx/${{ inputs.process-pyfile }}.py \
-          --file "fx_chunks/chunk_${{ inputs.chunk-id }}.json" \
-          ${{ inputs.full-run == 'true' && '--full-run' || '' }}
+        CHUNK_DIR="$(mktemp -d $RUNNER_TEMP/chunks-fx.XXXXXX)"
+        echo "chunk_dir=$CHUNK_DIR" >> $GITHUB_OUTPUT
       shell: bash
 
-    - name: Cache "fx_downloads"
-      uses: actions/cache@v4
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
       with:
-        path: fx_downloads
-        key: fx_downloads-${{ inputs.run-id }}
+        name: chunks-fx-${{ inputs.run-id }}
+        path: ${{ steps.prep_chunk.outputs.chunk_dir }}
+
+    - name: Run FX
+      id: fx
+      run: |
+        CHUNK_FILE="${{ steps.prep_chunk.outputs.chunk_dir }}/chunk_${{ inputs.chunk-id }}.json"
+        
+        echo "🚀 Running for chunk ID: ${{ inputs.chunk-id }}"
+        OUTPUT_DIR=$(python equicast_ingestion/scripts/fx/${{ inputs.process-pyfile }}.py \
+          --file "$CHUNK_FILE" \
+          --max-workers ${{ inputs.max-workers }} \
+          --max-retries ${{ inputs.max-retries }} \
+          ${{ inputs.full-run == 'true' && '--full-run' || '' }} | tail -n 1)
+        
+        echo "output_dir=$OUTPUT_DIR" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: fx-downloads-${{ inputs.chunk-id }}-${{ inputs.run-id }}
+        path: ${{ steps.fx.outputs.output_dir }}
 
     - name: Upload "error.log"
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: error-fx-${{ inputs.process-name }}-log
-        path: fx_downloads/error_extract_${{ inputs.process-pyfile }}.log
+        name: error-fx-${{ inputs.process-name }}-${{ inputs.chunk-id }}-log
+        path: ${{ steps.fx.outputs.output_dir }}/error_extract_${{ inputs-process.pyfile }}.log

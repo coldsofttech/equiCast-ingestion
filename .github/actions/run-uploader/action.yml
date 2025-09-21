@@ -5,9 +5,6 @@ inputs:
   mode:
     description: "The 'mode' to run"
     required: true
-  path:
-    description: "The path of the directory to upload"
-    required: true
   pattern:
     description: "The file pattern to upload"
     required: true
@@ -16,27 +13,56 @@ inputs:
     required: true
   s3-bucket:
     description: "The target S3 bucket for files uploading"
+    required: true
+  run-id:
+    description: "GitHub Run ID (used for caching)"
+    required: true
+
+outputs:
+  download-dir:
+    description: "Temporary directory containing all parquet files"
+    value: ${{ steps.prep_download.outputs.download_dir }}
 
 runs:
   using: "composite"
   steps:
-    - name: Restore Downloads
-      uses: actions/cache@v4
-      with:
-        path: ${{ inputs.path }}
-        key: ${{ inputs.path }}-${{ inputs.run-id }}
+    - name: Create Temp Directory
+      id: prep_download
+      run: |
+        DOWNLOAD_DIR="$(mktemp -d $RUNNER_TEMP/${{ inputs.mode }}-downloads.XXXXXX)"
+        echo "download_dir=$DOWNLOAD_DIR" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Install GitHub CLI
+      run: |
+        sudo apt-get update && sudo apt-get install -y gh
+      shell: bash
+
+    - name: Download All Artifacts
+      run: |
+        DOWNLOAD_DIR="${{ steps.prep_download.outputs.download_dir }}"
+        ARTIFACTS=$(gh run list-artifacts --run-id ${{ inputs.run-id }} \
+          --json name -q '.[].name' | grep '^${{ inputs.mode }}-downloads-')
+        
+        for ARTIFACT_NAME in $ARTIFACTS; do
+          echo "🔁 Downloading $ARTIFACT_NAME..."
+          gh run download-artifact --name "$ARTIFACT_NAME" --dir "$DOWNLOAD_DIR"
+        done
+        
+        echo "✅ All available artifacts downloaded to $DOWNLOAD_DIR"
+      shell: bash
 
     - name: Estimate S3 Storage Cost
       run: |
         python equicast_ingestion/scripts/calculate_s3_cost.py \
-          --directory-path "${{ inputs.path }}" \
+          --directory-path "${{ steps.prep_download.outputs.download_dir }}" \
           --file-pattern "${{ inputs.pattern }}"
       shell: bash
 
     - name: Upload Parquet Files
       run: |
         python equicast_ingestion/scripts/uploader.py \
-          --directory-path "${{ inputs.path }}" \
+          --directory-path "${{ steps.prep_download.outputs.download_dir }}" \
           --file-pattern "${{ inputs.pattern }}" \
           --custom-message "${{ inputs.message }}" \
           --s3-bucket "${{ inputs.s3-bucket }}" \

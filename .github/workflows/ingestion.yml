@@ -377,7 +377,7 @@ jobs:
         uses: ./.github/actions/run-uploader
         with:
           mode: fx
-          path: fx_downloads
           pattern: "*.parquet"
           message: "Upload FX Parquet Files"
           s3-bucket: "equicast-ingestion"
+          run-id: ${{ github.run_id }}
