@@ -33,7 +33,7 @@ runs:
     - name: Download Artifact
       uses: actions/download-artifact@v4
       with:
-        name: downloads-${{ input.run-id }}
+        name: downloads-${{ inputs.run-id }}
         path: ${{ steps.prep_download.outputs.download_dir }}
 
     - name: Run Splitter
