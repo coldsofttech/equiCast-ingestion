@@ -401,4 +401,4 @@ jobs:
         with:
           gh-token: ${{ secrets.GITHUB_TOKEN }}
           gh-repository: ${{ github.repository }}
-          run-id: ${{ githun.run_id }}
+          run-id: ${{ github.run_id }}
